@@ -16,7 +16,8 @@ exclude =
     build,
     dist,
     .tox,
-    src/main/EAS/generated/
+    src/main/EAS/generated/,
+    src/eas_sdk/proto/
 
 # Complexity limits for maintainability in security-critical blockchain code
 max-complexity = 10
