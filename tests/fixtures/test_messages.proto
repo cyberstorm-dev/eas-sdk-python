@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package test.v1;
+
+import "eas/v1/messages.proto";
+
+// Identity registry - links domain identifier to Ethereum address
+message Identity {
+  string domain = 1;              // Points to domain
+  string identifier = 2;          // username on that domain  
+  string registrant = 3;          // Ethernet address of the registrant (who signs payload)
+  string proof_url = 4;           // Verification proof URL (e.g., gist URL)
+  string attestor = 5;            // Ethernet address of the attestor
+  bytes registrant_signature = 6; // Registrant's signature of (domain.domain + identifier + registrant)
+  bytes attestor_signature = 7;   // Attestor's signature of (domain.domain + identifier + registrant) 
+  eas.v1.Attestation eas_attestation = 8; // Optional: EAS attestation metadata when loaded from chain
+}
