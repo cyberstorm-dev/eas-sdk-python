@@ -187,6 +187,9 @@ src/main/EAS/generated/repository/
 src/proto/repository/
 logs/
 
+# Generated protobuf files (can be regenerated from buf.build)
+src/eas_sdk/proto/
+
 # Buf specific
 .buf/
 buf.lock

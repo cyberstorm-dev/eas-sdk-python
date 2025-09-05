@@ -1,0 +1,10 @@
+version: v2
+managed:
+  enabled: true
+plugins:
+  - remote: buf.build/protocolbuffers/python
+    out: src/eas_sdk/proto
+    opt:
+      - pyi_out=src/eas_sdk/proto
+  - remote: buf.build/grpc/python
+    out: src/eas_sdk/proto
