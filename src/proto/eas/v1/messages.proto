@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package eas.v1;
+
+option go_package = "github.com/eas-sdk/proto/eas/v1;easv1";
+option java_package = "com.eas.sdk.proto.eas.v1";
+option java_multiple_files = true;
+
+// EAS Schema message representing a schema from the GraphQL API
+message Schema {
+  // Schema ID (hex string)
+  string id = 1;
+  
+  // Schema definition string
+  string schema = 2;
+  
+  // Creator address (hex string)
+  string creator = 3;
+  
+  // Resolver address (hex string)
+  string resolver = 4;
+  
+  // Whether the schema is revocable
+  bool revocable = 5;
+  
+  // Schema index (string representation)
+  string index = 6;
+  
+  // Transaction ID (hex string)
+  string txid = 7;
+  
+  // Timestamp (Unix timestamp)
+  uint64 time = 8;
+}
+
+// EAS Attestation message representing an attestation from the GraphQL API
+message Attestation {
+  // Attestation ID (hex string)
+  string id = 1;
+  
+  // Schema ID (hex string)
+  string schema_id = 2;
+  
+  // Attester address (hex string)
+  string attester = 3;
+  
+  // Recipient address (hex string)
+  string recipient = 4;
+  
+  // Timestamp (Unix timestamp)
+  uint64 time = 5;
+  
+  // Expiration time (Unix timestamp, 0 if no expiration)
+  uint64 expiration_time = 6;
+  
+  // Whether the attestation is revocable
+  bool revocable = 7;
+  
+  // Whether the attestation is revoked
+  bool revoked = 8;
+  
+  // Attestation data (hex string)
+  string data = 9;
+  
+  // Transaction ID (hex string)
+  string txid = 10;
+  
+  // Time created (Unix timestamp)
+  uint64 time_created = 11;
+  
+  // Revocation time (Unix timestamp, 0 if not revoked)
+  uint64 revocation_time = 12;
+  
+  // Reference UID (hex string)
+  string ref_uid = 13;
+  
+  // IPFS hash (empty string if not stored on IPFS)
+  string ipfs_hash = 14;
+  
+  // Whether this is an offchain attestation
+  bool is_offchain = 15;
+}
+
+// GraphQL response wrapper for schema queries
+message SchemaResponse {
+  Schema schema = 1;
+}
+
+// GraphQL response wrapper for attestation queries
+message AttestationResponse {
+  Attestation attestation = 1;
+}
+
+// GraphQL error message
+message GraphQLError {
+  string message = 1;
+  repeated string locations = 2;
+  repeated string path = 3;
+}
+
+// Complete GraphQL response structure
+message GraphQLResponse {
+  // Data field containing the actual response
+  oneof data {
+    SchemaResponse schema_response = 1;
+    AttestationResponse attestation_response = 2;
+  }
+  
+  // Errors field for GraphQL errors
+  repeated GraphQLError errors = 3;
+} 
