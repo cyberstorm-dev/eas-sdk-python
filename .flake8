@@ -1,0 +1,31 @@
+[flake8]
+max-line-length = 120
+
+# Only ignore rules that conflict with Black formatter or are acceptable for security code
+# E203: whitespace before ':' - conflicts with Black
+# W503: line break before binary operator - conflicts with Black  
+# C901: function too complex - acceptable for security-critical blockchain validation functions
+extend-ignore = E203,W503,C901
+
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    .eggs,
+    *.egg,
+    build,
+    dist,
+    .tox,
+    src/main/EAS/generated/
+
+# Complexity limits for maintainability in security-critical blockchain code
+max-complexity = 10
+
+# Per-file configuration
+per-file-ignores =
+    src/test/*.py:E501,E402
+    examples/*.py:E501
+    # Generated/imported modules that flake8 can't properly analyze
+    src/main/EAS/observability.py:F401
+    src/main/EAS/proto_helpers.py:F401
+    src/test/test_offchain_revocation.py:F401

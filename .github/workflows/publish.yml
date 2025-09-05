@@ -1,0 +1,145 @@
+name: Publish to PyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 0.1.0)'
+        required: true
+        type: string
+      publish_to_testpypi:
+        description: 'Publish to TestPyPI first'
+        required: false
+        type: boolean
+        default: true
+      publish_to_pypi:
+        description: 'Publish to production PyPI'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  PYTHON_VERSION: "3.11"
+
+permissions:
+  contents: read
+  id-token: write  # Required for trusted publishing
+
+jobs:
+  validate:
+    name: Validate Publication
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install Task
+      uses: arduino/setup-task@v2
+      with:
+        version: 3.x
+
+    - name: Validate version in pyproject.toml
+      run: |
+        CURRENT_VERSION=$(python3 -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); print(data['project']['version'])")
+        if [ "$CURRENT_VERSION" != "${{ inputs.version }}" ]; then
+          echo "❌ Version mismatch in pyproject.toml!"
+          echo "Current version: $CURRENT_VERSION"
+          echo "Requested publish version: ${{ inputs.version }}"
+          echo "Please update pyproject.toml version to match."
+          exit 1
+        fi
+        echo "✅ pyproject.toml version validation passed: $CURRENT_VERSION"
+
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    needs: validate
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install Task
+      uses: arduino/setup-task@v2
+      with:
+        version: 3.x
+
+    - name: Run comprehensive checks
+      run: |
+        echo "🔍 Running pre-publish validation..."
+        task release:check
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist-packages
+        path: dist/
+        retention-days: 30
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: ${{ inputs.publish_to_testpypi == true }}
+    environment: 
+      name: testpypi
+      url: https://test.pypi.org/project/eas-sdk/
+    
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v5
+      with:
+        name: dist-packages
+        path: dist/
+
+    - name: Publish to TestPyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/
+        skip-existing: true
+        verbose: true
+
+    - name: Test installation from TestPyPI
+      run: |
+        echo "🧪 Testing installation from TestPyPI..."
+        pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ eas-sdk==${{ inputs.version }}
+        python3 -c "from main.EAS import EAS; print('✅ EAS SDK import successful')"
+
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [build-and-test, publish-testpypi]
+    if: ${{ inputs.publish_to_pypi == true && (needs.publish-testpypi.result == 'success' || needs.publish-testpypi.result == 'skipped') }}
+    environment: 
+      name: pypi
+      url: https://pypi.org/project/eas-sdk/
+    
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v5
+      with:
+        name: dist-packages
+        path: dist/
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        verbose: true
+
+    - name: Test installation from PyPI
+      run: |
+        echo "🚀 Testing installation from PyPI..."
+        sleep 60  # Wait for PyPI propagation
+        pip install eas-sdk==${{ inputs.version }}
+        python3 -c "from main.EAS import EAS; print('✅ EAS SDK production installation successful')"
