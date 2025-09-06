@@ -1,0 +1,142 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eas-sdk"
+version = "0.1.1"
+description = "Python SDK for Ethereum Attestation Service (EAS)"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "EAS SDK Contributors"}
+]
+keywords = ["ethereum", "attestation", "web3", "blockchain", "eas"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Security :: Cryptography",
+]
+dependencies = [
+    "protobuf>=6.32.0",
+    "web3>=6.14.0",
+    "jsonschema>=4.25.1",
+    "eth-abi>=5.2.0",
+    "python-dotenv",
+    "PyYAML",
+    "requests",
+    "rich",
+    "click",
+    "grpcio-tools",
+    "grpcio-status",
+    "structlog",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "mypy-protobuf>=3.6.0",
+    "types-PyYAML",
+    "types-protobuf",
+    "types-requests",
+    "build>=1.0.0",
+    "twine>=4.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/cyberstorm-dev/eas-sdk-python"
+Repository = "https://github.com/cyberstorm-dev/eas-sdk-python"
+Documentation = "https://github.com/cyberstorm-dev/eas-sdk-python#readme"
+"Bug Tracker" = "https://github.com/cyberstorm-dev/eas-sdk-python/issues"
+
+[tool.setuptools.packages.find]
+where = ["src/main"]
+
+[tool.setuptools.package-data]
+"EAS" = ["*.json"]
+
+[project.scripts]
+eas-tools = "EAS.cli:main"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["EAS"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+# Exclude generated and problematic files
+exclude = [
+    "src/main/EAS/generated/.*",
+    "src/main/EAS/schema_encoder.py",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["src/test", "tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--cov=EAS",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "live_write: marks tests that require real private key and perform blockchain writes",
+    "network: marks tests that require network connectivity",
+    "requires_network: marks tests that require network connectivity",
+    "requires_private_key: marks tests that require private key and perform blockchain writes",
+] 
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503", "C901"]
