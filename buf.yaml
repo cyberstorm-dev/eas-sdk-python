@@ -1,7 +1,7 @@
 version: v2
 modules:
   - path: src/proto
-    name: buf.build/cyberstorm/eas-schemas
+    name: buf.build/cyberstorm/eas
 deps:
   - buf.build/bufbuild/protovalidate
 breaking:

@@ -253,7 +253,7 @@ tasks:
     deps: [install:buf]
     cmds:
       - echo "🔍 Checking for breaking changes..."
-      - buf breaking --against buf.build/cyberstorm/eas-schemas
+      - buf breaking --against buf.build/cyberstorm/eas
       - echo "✅ No breaking changes detected"
 
   buf:push:
@@ -262,7 +262,7 @@ tasks:
     cmds:
       - echo "📤 Pushing to BSR..."
       - buf push
-      - echo "✅ Successfully pushed to buf.build/cyberstorm/eas-schemas"
+      - echo "✅ Successfully pushed to buf.build/cyberstorm/eas"
 
   buf:push:draft:
     desc: Push protobuf schemas to BSR with draft label
@@ -278,7 +278,7 @@ tasks:
     cmds:
       - echo "📤 Creating and pushing new module to BSR..."
       - buf push --create
-      - echo "✅ Successfully created and pushed to buf.build/cyberstorm/eas-schemas"
+      - echo "✅ Successfully created and pushed to buf.build/cyberstorm/eas"
 
   # Utility tasks
   deps:
