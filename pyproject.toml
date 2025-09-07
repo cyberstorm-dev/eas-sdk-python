@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eas-sdk"
-version = "0.1.2"
+version = "0.1.3"
 description = "Python SDK for Ethereum Attestation Service (EAS)"
 readme = "README.md"
 license = {text = "MIT"}
