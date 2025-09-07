@@ -176,7 +176,7 @@ jobs:
           ### 🔗 Quick Start
           
           ```python
-          from main.EAS import EAS
+          from eas import EAS
           
           # Create EAS instance for Base Sepolia testnet
           eas = EAS.from_chain("base-sepolia", private_key, from_account)

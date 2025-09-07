@@ -10,9 +10,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from main.EAS.core import EAS
-from main.EAS.exceptions import EASTransactionError, EASValidationError
-from main.EAS.transaction import TransactionResult
+from eas import EAS
+from eas.exceptions import EASTransactionError, EASValidationError
+from eas.transaction import TransactionResult
 
 from .test_utils import requires_network, requires_private_key
 
@@ -20,7 +20,7 @@ from .test_utils import requires_network, requires_private_key
 class TestBatchAttestation:
     """Unit tests for batch attestation functionality."""
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_multi_attest_validation_empty_requests(self, mock_open, mock_web3_class):
         """Test multi_attest with empty requests list."""
@@ -36,7 +36,7 @@ class TestBatchAttestation:
         ):
             eas.multi_attest([])
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_multi_attest_validation_invalid_request_format(
         self, mock_open, mock_web3_class
@@ -52,7 +52,7 @@ class TestBatchAttestation:
         with pytest.raises(EASValidationError, match="Request 0 must be a dictionary"):
             eas.multi_attest(["invalid"])
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_multi_attest_validation_invalid_schema_uid(
         self, mock_open, mock_web3_class
@@ -89,7 +89,7 @@ class TestBatchAttestation:
                 ]
             )
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_multi_attest_validation_empty_attestations(
         self, mock_open, mock_web3_class
@@ -107,7 +107,7 @@ class TestBatchAttestation:
         ):
             eas.multi_attest([{"schema_uid": "0x" + "a" * 64, "attestations": []}])
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_multi_attest_validation_invalid_recipient(
         self, mock_open, mock_web3_class
@@ -131,7 +131,7 @@ class TestBatchAttestation:
                 ]
             )
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_multi_attest_validation_invalid_ref_uid(self, mock_open, mock_web3_class):
         """Test multi_attest with invalid ref_uid format."""
@@ -158,7 +158,7 @@ class TestBatchAttestation:
                 ]
             )
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_multi_attest_success_single_schema(self, mock_open, mock_web3_class):
         """Test successful multi_attest with single schema."""
@@ -185,7 +185,7 @@ class TestBatchAttestation:
         mock_w3.eth.get_transaction_count.return_value = 1
 
         # Mock signing and sending
-        with patch("main.EAS.core.Account.sign_transaction") as mock_sign:
+        with patch("main.eas.core.Account.sign_transaction") as mock_sign:
             mock_signed = Mock()
             mock_signed.rawTransaction = b"signed_tx"
             mock_sign.return_value = mock_signed
@@ -260,7 +260,7 @@ class TestBatchAttestation:
             assert data2 == b"test_data_2"
             assert value2 == 1000
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_multi_attest_success_multiple_schemas(self, mock_open, mock_web3_class):
         """Test successful multi_attest with multiple schemas."""
@@ -287,7 +287,7 @@ class TestBatchAttestation:
         mock_w3.eth.get_transaction_count.return_value = 1
 
         # Mock signing and sending
-        with patch("main.EAS.core.Account.sign_transaction") as mock_sign:
+        with patch("main.eas.core.Account.sign_transaction") as mock_sign:
             mock_signed = Mock()
             mock_signed.rawTransaction = b"signed_tx"
             mock_sign.return_value = mock_signed
@@ -348,7 +348,7 @@ class TestBatchAttestation:
             assert schema_uid2 == bytes.fromhex("b" * 64)
             assert len(attestation_data_list2) == 1
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_multi_attest_gas_estimation_failure(self, mock_open, mock_web3_class):
         """Test multi_attest gas estimation failure."""
@@ -383,7 +383,7 @@ class TestBatchAttestation:
         with pytest.raises(EASTransactionError, match="Build transaction failed"):
             eas.multi_attest(requests)
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_multi_attest_transaction_failure(self, mock_open, mock_web3_class):
         """Test multi_attest transaction failure."""
@@ -410,7 +410,7 @@ class TestBatchAttestation:
         mock_w3.eth.get_transaction_count.return_value = 1
 
         # Mock signing and sending
-        with patch("main.EAS.core.Account.sign_transaction") as mock_sign:
+        with patch("main.eas.core.Account.sign_transaction") as mock_sign:
             mock_signed = Mock()
             mock_signed.rawTransaction = b"signed_tx"
             mock_sign.return_value = mock_signed

@@ -8,14 +8,14 @@ import os
 
 import pytest
 
-from main.EAS.exceptions import (
+from eas.exceptions import (
     EASError,
     EASNetworkError,
     EASTransactionError,
     EASValidationError,
 )
-from main.EAS.observability import get_logger, log_operation
-from main.EAS.transaction import TransactionResult
+from eas.observability import get_logger, log_operation
+from eas.transaction import TransactionResult
 
 from .test_utils import has_private_key, requires_network, requires_private_key
 
@@ -193,9 +193,8 @@ class TestLiveWriteOperations:
     @requires_network
     def test_transaction_result_with_real_receipt(self):
         """Test transaction result creation with real blockchain receipt format."""
-        from main.EAS.core import EAS
-        from main.EAS.exceptions import EASValidationError
-        from main.EAS.transaction import TransactionResult
+        from eas import EAS
+        from eas.transaction import TransactionResult
 
         # Use environment variables for live testing
         rpc_url = os.getenv("RPC_URL", "https://sepolia.base.org")

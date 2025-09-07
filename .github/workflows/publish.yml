@@ -114,7 +114,7 @@ jobs:
       run: |
         echo "🧪 Testing installation from TestPyPI..."
         pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ eas-sdk==${{ inputs.version }}
-        python3 -c "from main.EAS import EAS; print('✅ EAS SDK import successful')"
+        python3 -c "from eas import EAS; print('✅ EAS SDK import successful')"
 
   publish-pypi:
     name: Publish to PyPI
@@ -142,4 +142,4 @@ jobs:
         echo "🚀 Testing installation from PyPI..."
         sleep 60  # Wait for PyPI propagation
         pip install eas-sdk==${{ inputs.version }}
-        python3 -c "from main.EAS import EAS; print('✅ EAS SDK production installation successful')"
+        python3 -c "from eas import EAS; print('✅ EAS SDK production installation successful')"

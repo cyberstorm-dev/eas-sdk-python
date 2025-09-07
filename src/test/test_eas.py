@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from main.EAS.core import EAS
+from eas import EAS
 
 
 class TestEAS:
@@ -36,7 +36,7 @@ class TestEAS:
         }
         return mock_contract
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open")
     @patch("json.load")
     def test_init_success(
@@ -63,7 +63,7 @@ class TestEAS:
         assert eas.chain_id == 1
         assert eas.contract_version == "0.26"
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     def test_init_connection_failure(self, mock_web3_class):
         """Test initialization failure when web3 connection fails"""
         # Setup mock to return False for is_connected
@@ -85,7 +85,7 @@ class TestEAS:
     def test_get_offchain_uid_version_0(self, mock_web3, mock_contract):
         """Test get_offchain_uid with version 0"""
         with (
-            patch("main.EAS.core.web3.Web3") as mock_web3_class,
+            patch("main.eas.core.web3.Web3") as mock_web3_class,
             patch("builtins.open"),
             patch("json.load") as mock_json_load,
         ):
@@ -119,7 +119,7 @@ class TestEAS:
     def test_get_offchain_uid_version_1(self, mock_web3, mock_contract):
         """Test get_offchain_uid with version 1"""
         with (
-            patch("main.EAS.core.web3.Web3") as mock_web3_class,
+            patch("main.eas.core.web3.Web3") as mock_web3_class,
             patch("builtins.open"),
             patch("json.load") as mock_json_load,
         ):
@@ -169,7 +169,7 @@ class TestEAS:
     def test_get_offchain_uid_unsupported_version(self, mock_web3, mock_contract):
         """Test get_offchain_uid with unsupported version"""
         with (
-            patch("main.EAS.core.web3.Web3") as mock_web3_class,
+            patch("main.eas.core.web3.Web3") as mock_web3_class,
             patch("builtins.open"),
             patch("json.load") as mock_json_load,
         ):

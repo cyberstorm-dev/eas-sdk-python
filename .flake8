@@ -16,7 +16,7 @@ exclude =
     build,
     dist,
     .tox,
-    src/main/EAS/generated/,
+    src/main/eas/v1/,
     src/eas_sdk/proto/
 
 # Complexity limits for maintainability in security-critical blockchain code
@@ -27,6 +27,6 @@ per-file-ignores =
     src/test/*.py:E501,E402
     examples/*.py:E501
     # Generated/imported modules that flake8 can't properly analyze
-    src/main/EAS/observability.py:F401
-    src/main/EAS/proto_helpers.py:F401
+    src/main/eas/observability.py:F401
+    src/main/eas/proto_helpers.py:F401
     src/test/test_offchain_revocation.py:F401

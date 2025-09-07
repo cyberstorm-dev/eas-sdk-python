@@ -4,7 +4,7 @@ Tests for type_parser module.
 
 import pytest
 
-from main.EAS.type_parser import (
+from eas.type_parser import (
     EASField,
     EASType,
     EASTypeParser,
