@@ -4,7 +4,7 @@ Tests for schema_generator module.
 
 import pytest
 
-from main.EAS.schema_generator import (
+from eas.schema_generator import (
     eas_to_protobuf_type,
     generate_eas_format,
     generate_json_format,
@@ -63,7 +63,7 @@ class TestSchemaGenerator:
 
     def test_eas_to_protobuf_type_mapping(self):
         """Test EAS to protobuf type mapping."""
-        from main.EAS.type_parser import EASType
+        from eas.type_parser import EASType
 
         assert eas_to_protobuf_type(EASType("address", [], False)) == "string"
         assert eas_to_protobuf_type(EASType("string", [], False)) == "string"
@@ -79,7 +79,7 @@ class TestSchemaGenerator:
 
     def test_generate_eas_format(self):
         """Test generating EAS format."""
-        from main.EAS.type_parser import EASField, EASType
+        from eas.type_parser import EASField, EASType
 
         fields = [
             EASField("domain", EASType("string", [], False)),
@@ -93,7 +93,7 @@ class TestSchemaGenerator:
 
     def test_generate_json_format(self):
         """Test generating JSON format."""
-        from main.EAS.type_parser import EASField, EASType
+        from eas.type_parser import EASField, EASType
 
         fields = [
             EASField("domain", EASType("string", [], False)),
@@ -118,7 +118,7 @@ class TestSchemaGenerator:
 
     def test_generate_yaml_format(self):
         """Test generating YAML format."""
-        from main.EAS.type_parser import EASField, EASType
+        from eas.type_parser import EASField, EASType
 
         fields = [
             EASField("domain", EASType("string", [], False)),
@@ -142,7 +142,7 @@ class TestSchemaGenerator:
 
     def test_generate_proto_format(self):
         """Test generating protobuf format."""
-        from main.EAS.type_parser import EASField, EASType
+        from eas.type_parser import EASField, EASType
 
         fields = [
             EASField("domain", EASType("string", [], False)),
@@ -160,7 +160,7 @@ class TestSchemaGenerator:
 
     def test_generate_proto_format_with_complex_types(self):
         """Test generating protobuf format with complex types (should fail)."""
-        from main.EAS.type_parser import EASField, EASType
+        from eas.type_parser import EASField, EASType
 
         fields = [
             EASField("domain", EASType("string", [], False)),
