@@ -62,8 +62,8 @@ Repository = "https://github.com/cyberstorm-dev/eas-sdk-python"
 Documentation = "https://github.com/cyberstorm-dev/eas-sdk-python#readme"
 "Bug Tracker" = "https://github.com/cyberstorm-dev/eas-sdk-python/issues"
 
-[tool.setuptools.packages.find]
-where = ["src/main"]
+[tool.setuptools]
+package-dir = {"" = "src/main"}
 
 [tool.setuptools.package-data]
 "eas" = ["*.json"]
