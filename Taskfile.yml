@@ -1,0 +1,378 @@
+version: '3'
+
+vars:
+  PYTHON: '{{.PYTHON | default "python3"}}'
+  VENV_PYTHON: '{{.VENV_DIR | default ".venv"}}/bin/python'
+  VENV_DIR: '{{.VENV_DIR | default ".venv"}}'
+  SOURCE_DIR: 'src'
+  TEST_DIR: 'src/test'
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  # Environment setup
+  install:
+    desc: Install dependencies and setup development environment
+    deps: [_ensure-venv]
+    cmds:
+      - echo "📦 Installing dependencies..."
+      - '{{.VENV_DIR}}/bin/pip install -e .[dev]'
+      - |
+        # Fix missing google/__init__.py file (common protobuf installation issue)
+        PYTHON_VERSION=$({{.VENV_DIR}}/bin/python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+        GOOGLE_PKG_DIR="{{.VENV_DIR}}/lib/python${PYTHON_VERSION}/site-packages/google"
+        if [ -d "$GOOGLE_PKG_DIR" ] && [ ! -f "$GOOGLE_PKG_DIR/__init__.py" ]; then
+          echo "Creating missing google/__init__.py file..."
+          touch "$GOOGLE_PKG_DIR/__init__.py" 2>/dev/null || true
+        fi
+      - echo "✅ Dependencies installed successfully"
+
+  _ensure-venv:
+    desc: Ensure virtual environment exists
+    status:
+      - test -d {{.VENV_DIR}}
+    cmds:
+      - echo "🐍 Creating virtual environment..."
+      - '{{.PYTHON}} -m venv {{.VENV_DIR}}'
+      - '{{.VENV_DIR}}/bin/pip install --upgrade pip setuptools wheel'
+
+  # Cleanup tasks
+  clean:
+    desc: Clean build artifacts, cache, and temporary files
+    cmds:
+      - echo "🧹 Cleaning build artifacts..."
+      - rm -rf build/ dist/ *.egg-info/
+      - rm -rf .pytest_cache/ .coverage htmlcov/
+      - rm -rf {{.SOURCE_DIR}}/**/__pycache__/ {{.TEST_DIR}}/**/__pycache__/
+      - find . -name "*.pyc" -delete
+      - find . -name "*.pyo" -delete
+      - find . -name "*~" -delete
+      - echo "✅ Cleanup completed"
+
+  clean-all:
+    desc: Clean everything including virtual environment
+    cmds:
+      - task: clean
+      - echo "🗑️  Removing virtual environment..."
+      - rm -rf {{.VENV_DIR}}
+      - echo "✅ Full cleanup completed"
+
+  # Testing tasks
+  test:unit:
+    desc: Run unit tests (no network required)
+    deps: [install]
+    cmds:
+      - echo "🧪 Running unit tests..."
+      - '{{.VENV_PYTHON}} -m pytest -v -m "not requires_network and not requires_private_key" {{.TEST_DIR}}'
+
+  test:integration:
+    desc: Run integration tests (network required)
+    deps: [install]
+    cmds:
+      - echo "🌐 Running integration tests..."
+      - '{{.VENV_PYTHON}} -m pytest -v -m "integration and not requires_private_key" {{.TEST_DIR}}'
+
+  test:live:
+    desc: Run live write tests (private key required)
+    deps: [install]
+    cmds:
+      - echo "🔥 Running live write tests..."
+      - '{{.VENV_PYTHON}} -m pytest -v -m "requires_private_key" {{.TEST_DIR}}'
+
+  test:all:
+    desc: Run all tests
+    deps: [install]
+    cmds:
+      - echo "🚀 Running all tests..."
+      - '{{.VENV_PYTHON}} -m pytest -v {{.TEST_DIR}}'
+
+  # Alternative pytest commands for more control
+  pytest:
+    desc: Run pytest with custom args
+    deps: [install]
+    cmds:
+      - '{{.VENV_PYTHON}} -m pytest {{.CLI_ARGS}}'
+
+  pytest:verbose:
+    desc: Run pytest with verbose output
+    deps: [install]
+    cmds:
+      - '{{.VENV_PYTHON}} -m pytest -v {{.CLI_ARGS}}'
+
+  # Code quality and linting
+  check:format:
+    desc: Check code formatting with black and isort
+    deps: [install]
+    cmds:
+      - echo "🎨 Checking code formatting..."
+      - '{{.VENV_PYTHON}} -m black --check --diff {{.SOURCE_DIR}}'
+      - '{{.VENV_PYTHON}} -m isort --check-only --diff {{.SOURCE_DIR}}'
+
+  check:lint:
+    desc: Run linting with flake8
+    deps: [install]
+    cmds:
+      - echo "🔍 Running linter..."
+      - '{{.VENV_PYTHON}} -m flake8 {{.SOURCE_DIR}}'
+
+  check:types:
+    desc: Run type checking with mypy
+    deps: [install]
+    cmds:
+      - echo "📝 Running type checker..."
+      - '{{.VENV_PYTHON}} -m mypy {{.SOURCE_DIR}}/main'
+
+  check:
+    desc: Run all code quality checks
+    deps: [install]
+    cmds:
+      - task: check:format
+      - task: check:lint
+      - task: check:types
+      - echo "✅ All checks passed"
+
+  # Formatting tasks
+  format:
+    desc: Auto-format code with black and isort
+    deps: [install]
+    cmds:
+      - echo "🎨 Formatting code..."
+      - '{{.VENV_PYTHON}} -m black {{.SOURCE_DIR}}'
+      - '{{.VENV_PYTHON}} -m isort {{.SOURCE_DIR}}'
+      - echo "✅ Code formatted"
+
+  # Packaging tasks
+  build:
+    desc: Build distribution packages
+    deps: [install, clean]
+    cmds:
+      - echo "📦 Building distribution packages..."
+      - '{{.VENV_PYTHON}} -m build'
+      - echo "✅ Build completed"
+      - ls -la dist/
+
+  package:
+    desc: Build and verify packages
+    deps: [build]
+    cmds:
+      - echo "🔍 Verifying built packages..."
+      - '{{.VENV_PYTHON}} -m twine check dist/*'
+      - echo "✅ Package verification completed"
+
+  # Development workflow
+  dev:
+    desc: Setup development environment and run basic checks
+    cmds:
+      - task: install
+      - task: format
+      - task: test:unit
+      - echo "🎉 Development environment ready!"
+
+  ci:
+    desc: Run full CI pipeline (format check, lint, type check, all tests)
+    cmds:
+      - task: check
+      - task: test:all
+      - echo "✅ CI pipeline completed successfully"
+
+  # Protocol Buffer generation tasks
+  install:buf:
+    desc: Install buf CLI for protobuf generation
+    cmds:
+      - echo "📦 Installing buf CLI..."
+      - |
+        if ! command -v buf &> /dev/null; then
+          curl -sSL https://github.com/bufbuild/buf/releases/latest/download/buf-$(uname -s)-$(uname -m) -o /usr/local/bin/buf
+          chmod +x /usr/local/bin/buf
+        else
+          echo "buf CLI already installed"
+        fi
+
+  generate:proto:
+    desc: Generate Python protobuf files using buf
+    deps: [install:buf]
+    cmds:
+      - echo "🔧 Generating Python protobuf files..."
+      - mkdir -p logs
+      - cd src/proto && buf dep update
+      - cd src/proto && buf lint
+      - buf generate --template buf.gen.python.yaml --include-imports src/proto
+      - echo "✅ Protobuf files generated successfully"
+
+  clean:proto:
+    desc: Clean generated protobuf files
+    cmds:
+      - echo "🧹 Cleaning generated protobuf files..."
+      - rm -rf src/main/EAS/generated/
+      - echo "✅ Protobuf files cleaned"
+
+  proto:
+    desc: Clean and regenerate all protobuf files
+    cmds:
+      - task: clean:proto
+      - task: generate:proto
+
+  # BSR (Buf Schema Registry) tasks
+  buf:format:
+    desc: Format protobuf files using buf
+    deps: [install:buf]
+    cmds:
+      - echo "🎨 Formatting protobuf files..."
+      - buf format --write
+      - echo "✅ Protobuf files formatted"
+
+  buf:lint:
+    desc: Lint protobuf files using buf
+    deps: [install:buf]
+    cmds:
+      - echo "🔍 Linting protobuf files..."
+      - buf lint
+      - echo "✅ Protobuf files passed lint checks"
+
+  buf:build:
+    desc: Build protobuf files using buf
+    deps: [install:buf, buf:format, buf:lint]
+    cmds:
+      - echo "🔨 Building protobuf files..."
+      - buf build
+      - echo "✅ Protobuf build successful"
+
+  buf:generate:
+    desc: Generate Python code from protobuf files
+    deps: [install:buf, buf:build]
+    cmds:
+      - echo "🔧 Generating Python protobuf files..."
+      - buf generate
+      - echo "✅ Python protobuf files generated"
+
+  buf:breaking:
+    desc: Check for breaking changes against BSR
+    deps: [install:buf]
+    cmds:
+      - echo "🔍 Checking for breaking changes..."
+      - buf breaking --against buf.build/cyberstorm/eas-schemas
+      - echo "✅ No breaking changes detected"
+
+  buf:push:
+    desc: Push protobuf schemas to Buf Schema Registry
+    deps: [install:buf, buf:build, buf:breaking]
+    cmds:
+      - echo "📤 Pushing to BSR..."
+      - buf push
+      - echo "✅ Successfully pushed to buf.build/cyberstorm/eas-schemas"
+
+  buf:push:draft:
+    desc: Push protobuf schemas to BSR with draft label
+    deps: [install:buf, buf:build]
+    cmds:
+      - echo "📤 Pushing to BSR with draft label..."
+      - buf push --label draft
+      - echo "✅ Successfully pushed to BSR with draft label"
+
+  buf:push:create:
+    desc: Create and push new module to BSR
+    deps: [install:buf, buf:build]
+    cmds:
+      - echo "📤 Creating and pushing new module to BSR..."
+      - buf push --create
+      - echo "✅ Successfully created and pushed to buf.build/cyberstorm/eas-schemas"
+
+  # Utility tasks
+  deps:
+    desc: Show installed dependencies
+    deps: [install]
+    cmds:
+      - '{{.VENV_PYTHON}} -m pip list'
+
+  deps:outdated:
+    desc: Show outdated dependencies
+    deps: [install]
+    cmds:
+      - '{{.VENV_PYTHON}} -m pip list --outdated'
+
+  env:
+    desc: Show environment information
+    deps: [_ensure-venv]
+    cmds:
+      - echo "🔍 Environment Information"
+      - echo "Python - $({{.VENV_PYTHON}} --version)"
+      - echo "Virtual Environment - {{.VENV_DIR}}"
+      - echo "Source Directory - {{.SOURCE_DIR}}"
+      - echo "Test Directory - {{.TEST_DIR}}"
+      - echo "Pip - $({{.VENV_PYTHON}} -m pip --version)"
+
+  # Security and supply chain
+  audit:
+    desc: Run security audit on dependencies
+    deps: [install]
+    cmds:
+      - echo "🔒 Running security audit..."
+      - '{{.VENV_PYTHON}} -m pip_audit || echo "⚠️  pip-audit not installed, run pip install pip-audit"'
+
+  # Documentation tasks (if needed)
+  docs:build:
+    desc: Build documentation (placeholder)
+    cmds:
+      - echo "📚 Documentation build not yet implemented"
+
+  # Release tasks
+  release:check:
+    desc: Pre-release checks
+    deps: [install]
+    cmds:
+      - echo "🚀 Running pre-release checks..."
+      - task: clean
+      - task: check
+      - task: test:all
+      - task: build
+      - echo "🔍 Verifying built packages..."
+      - '{{.VENV_PYTHON}} -m twine check dist/*'
+      - echo "✅ Package verification completed"
+      - echo "🚀 Ready for release!"
+
+  # Help task
+  help:
+    desc: Show detailed help for common workflows
+    cmds:
+      - echo "📋 Common EAS SDK Development Workflows"
+      - echo ""
+      - echo "🚀 Getting Started"
+      - echo "  task dev              - Setup development environment"
+      - echo "  task install          - Install dependencies"
+      - echo ""
+      - echo "🧪 Testing"
+      - echo "  task test:unit        - Run unit tests (fast, no network)"
+      - echo "  task test:integration - Run integration tests (network required)"
+      - echo "  task test:live        - Run live tests (private key required)"
+      - echo "  task test:all         - Run all tests"
+      - echo ""
+      - echo "🔍 Code Quality"
+      - echo "  task check            - Run all checks (format, lint, types)"
+      - echo "  task format           - Auto-format code"
+      - echo "  task check:lint       - Run linter only"
+      - echo ""
+      - echo "📦 Building & Packaging"
+      - echo "  task build            - Build distribution packages"
+      - echo "  task package          - Build and verify packages"
+      - echo "  task release:check    - Full pre-release validation"
+      - echo ""
+      - echo "🧹 Cleanup"
+      - echo "  task clean            - Clean build artifacts"
+      - echo "  task clean-all        - Clean everything including venv"
+      - echo ""
+      - echo "🔧 Protocol Buffers & BSR"
+      - echo "  task buf:format       - Format protobuf files"
+      - echo "  task buf:lint         - Lint protobuf files"
+      - echo "  task buf:build        - Build protobuf files"
+      - echo "  task buf:generate     - Generate Python code from protos"
+      - echo "  task buf:push:create  - Create and push to buf.build (first time)"
+      - echo "  task buf:push         - Push to buf.build (with breaking check)"
+      - echo "  task buf:push:draft   - Push draft to buf.build"
+      - echo ""
+      - echo "🔧 Development"
+      - echo "  task ci               - Run full CI pipeline"
+      - echo "  task env              - Show environment info"
+      - echo "  task deps             - Show installed dependencies"
