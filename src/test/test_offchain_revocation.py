@@ -10,8 +10,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from main.EAS.core import EAS
-from main.EAS.exceptions import EASValidationError
+from eas import EAS
+from eas.exceptions import EASValidationError
 
 from .test_utils import has_private_key, requires_network, requires_private_key
 
@@ -19,7 +19,7 @@ from .test_utils import has_private_key, requires_network, requires_private_key
 class TestOffchainRevocation:
     """Unit tests for off-chain revocation functionality."""
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_revoke_offchain_validation(self, mock_open, mock_web3_class):
         """Test off-chain revocation input validation."""
@@ -43,7 +43,7 @@ class TestOffchainRevocation:
         with pytest.raises(EASValidationError, match="Invalid attestation UID format"):
             eas.revoke_offchain("invalid-uid")
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_get_offchain_revocation_uid_version_0(self, mock_open, mock_web3_class):
         """Test off-chain revocation UID calculation for version 0."""
@@ -75,7 +75,7 @@ class TestOffchainRevocation:
         assert uid == b"mock_uid"
         mock_w3.keccak.assert_called_once()
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_get_offchain_revocation_uid_version_1(self, mock_open, mock_web3_class):
         """Test off-chain revocation UID calculation for version 1 - now works with EIP-712 implementation."""
@@ -108,7 +108,7 @@ class TestOffchainRevocation:
         assert isinstance(uid, bytes)
         assert len(uid) == 32  # 32 bytes
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_get_offchain_revocation_uid_invalid_version(
         self, mock_open, mock_web3_class
@@ -134,10 +134,10 @@ class TestOffchainRevocation:
         ):
             eas.get_offchain_revocation_uid(message, version=99)
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
-    @patch("main.EAS.core.os.urandom")
-    @patch("main.EAS.core.time.time")
+    @patch("main.eas.core.os.urandom")
+    @patch("main.eas.core.time.time")
     def test_revoke_offchain_success(
         self, mock_time, mock_urandom, mock_open, mock_web3_class
     ):
@@ -180,7 +180,7 @@ class TestOffchainRevocation:
             assert "data" in result
             assert result["revoker"] == eas.from_account
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_revoke_offchain_default_parameters(self, mock_open, mock_web3_class):
         """Test off-chain revocation with default parameters - currently blocked by EIP-712 issues."""
@@ -219,7 +219,7 @@ class TestOffchainRevocationIntegration:
     """Integration tests for off-chain revocation with network connectivity."""
 
     @requires_network
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_offchain_revocation_structure(self, mock_open, mock_web3_class):
         """Test that off-chain revocation returns proper structure."""
@@ -251,8 +251,8 @@ class TestOffchainRevocationIntegration:
                 mock_signed_message.v = 28
                 mock_account.sign_message.return_value = mock_signed_message
                 with patch("eth_account.Account.from_key", return_value=mock_account):
-                    with patch("main.EAS.core.os.urandom", return_value=b"salt" * 8):
-                        with patch("main.EAS.core.time.time", return_value=1234567890):
+                    with patch("main.eas.core.os.urandom", return_value=b"salt" * 8):
+                        with patch("main.eas.core.time.time", return_value=1234567890):
 
                             result = eas.revoke_offchain(
                                 attestation_uid="0x" + "a" * 64,

@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.main.EAS.security import (
+from eas.security import (
     ContractAddressValidator,
     SecureEnvironmentValidator,
     SecurityError,
@@ -100,7 +100,7 @@ class TestSecureEnvironmentValidator:
         # Use a private key with sufficient entropy for testing (not for real use!)
         valid_key = "0xa7c5ba7114b7119bb78dfc8e8ccd9f4ad8c6c9f2e8d7ab234fac8b1d5c7e9f12"
 
-        with patch("src.main.EAS.security.Account.from_key") as mock_account:
+        with patch("eas.security.Account.from_key") as mock_account:
             mock_account.return_value = MagicMock()
             with patch.object(
                 SecureEnvironmentValidator, "_has_low_entropy", return_value=False
@@ -132,7 +132,7 @@ class TestSecureEnvironmentValidator:
             SecureEnvironmentValidator.validate_private_key("0x" + "12" * 33)
 
         # Weak keys
-        with patch("src.main.EAS.security.Account.from_key") as mock_account:
+        with patch("eas.security.Account.from_key") as mock_account:
             mock_account.return_value = MagicMock()
 
             weak_keys = [
@@ -146,7 +146,7 @@ class TestSecureEnvironmentValidator:
                     SecureEnvironmentValidator.validate_private_key(weak_key)
 
         # Cryptographically invalid keys
-        with patch("src.main.EAS.security.Account.from_key") as mock_account:
+        with patch("eas.security.Account.from_key") as mock_account:
             mock_account.side_effect = ValueError("Invalid key")
 
             with pytest.raises(SecurityError, match="Invalid private key"):
@@ -169,9 +169,9 @@ class TestSecureEnvironmentValidator:
                 return addr.upper()
 
         with (
-            patch("src.main.EAS.security.Web3.is_address", return_value=True),
+            patch("eas.security.Web3.is_address", return_value=True),
             patch(
-                "src.main.EAS.security.Web3.to_checksum_address",
+                "eas.security.Web3.to_checksum_address",
                 side_effect=mock_checksum,
             ),
         ):
@@ -204,7 +204,7 @@ class TestSecureEnvironmentValidator:
             SecureEnvironmentValidator.validate_address("0x" + "12" * 21)
 
         # Web3 validation failure
-        with patch("src.main.EAS.security.Web3.is_address", return_value=False):
+        with patch("eas.security.Web3.is_address", return_value=False):
             with pytest.raises(SecurityError, match="Invalid Ethereum address"):
                 SecureEnvironmentValidator.validate_address(
                     "0x1234567890123456789012345678901234567890"
@@ -449,14 +449,14 @@ class TestContractAddressValidator:
 class TestSecurityIntegration:
     """Integration tests for security validation in EAS factory methods"""
 
-    @patch("src.main.EAS.config.get_network_config")
-    @patch("src.main.EAS.config.validate_chain_config")
-    @patch("src.main.EAS.core.web3.Web3")
+    @patch("eas.config.get_network_config")
+    @patch("eas.config.validate_chain_config")
+    @patch("eas.core.web3.Web3")
     def test_eas_from_chain_security_validation(
         self, mock_web3, mock_validate, mock_get_config
     ):
         """Test security validation in EAS.from_chain method"""
-        from src.main.EAS.core import EAS
+        from eas import EAS
 
         # Mock configuration
         mock_config = {
@@ -476,10 +476,10 @@ class TestSecurityIntegration:
         valid_address = "0xd796b20681bD6BEe28f0c938271FA99261c84fE8"
 
         with (
-            patch("src.main.EAS.security.Account.from_key"),
-            patch("src.main.EAS.security.Web3.is_address", return_value=True),
+            patch("eas.security.Account.from_key"),
+            patch("eas.security.Web3.is_address", return_value=True),
             patch(
-                "src.main.EAS.security.Web3.to_checksum_address",
+                "eas.security.Web3.to_checksum_address",
                 return_value=valid_address,
             ),
             patch.object(
@@ -510,14 +510,14 @@ class TestSecurityIntegration:
             "EAS_FROM_ACCOUNT": "0xd796b20681bD6BEe28f0c938271FA99261c84fE8",
         },
     )
-    @patch("src.main.EAS.config.get_network_config")
-    @patch("src.main.EAS.config.validate_chain_config")
-    @patch("src.main.EAS.core.web3.Web3")
+    @patch("eas.config.get_network_config")
+    @patch("eas.config.validate_chain_config")
+    @patch("eas.core.web3.Web3")
     def test_eas_from_environment_security_validation(
         self, mock_web3, mock_validate, mock_get_config
     ):
         """Test security validation in EAS.from_environment method"""
-        from src.main.EAS.core import EAS
+        from eas import EAS
 
         # Mock configuration
         mock_config = {
@@ -533,10 +533,10 @@ class TestSecurityIntegration:
         mock_w3.is_connected.return_value = True
 
         with (
-            patch("src.main.EAS.security.Account.from_key"),
-            patch("src.main.EAS.security.Web3.is_address", return_value=True),
+            patch("eas.security.Account.from_key"),
+            patch("eas.security.Web3.is_address", return_value=True),
             patch(
-                "src.main.EAS.security.Web3.to_checksum_address",
+                "src.main.eas.security.Web3.to_checksum_address",
                 return_value="0xd796b20681bD6BEe28f0c938271FA99261c84fE8",
             ),
             patch.object(
@@ -557,7 +557,7 @@ class TestSecurityIntegration:
     )
     def test_environment_injection_prevention(self):
         """Test that environment variable injection is prevented"""
-        from src.main.EAS.core import EAS
+        from eas import EAS
 
         with pytest.raises(ValueError, match="dangerous patterns"):
             EAS.from_environment()

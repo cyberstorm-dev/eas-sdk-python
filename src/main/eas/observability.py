@@ -160,7 +160,6 @@ def log_transaction_metrics(
     tx_result: Any, operation: str, context: Optional[Dict[str, Any]] = None
 ) -> None:
     """Log transaction metrics for monitoring and analysis with security sanitization."""
-    from .security import SecureEnvironmentValidator
 
     log_data = {
         "operation": operation,
@@ -220,7 +219,7 @@ def log_security_event(
         details: Event details dictionary
         severity: Log severity level ("info", "warning", "error", "critical")
     """
-    from .security import SecureEnvironmentValidator
+    from .security import SecureEnvironmentValidator  # noqa: F401
 
     # Sanitize all details before logging
     sanitized_details = {}

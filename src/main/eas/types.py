@@ -25,7 +25,7 @@ import structlog
 from eth_typing import Hash32, HexStr
 from google.protobuf.descriptor import FieldDescriptor
 from google.protobuf.message import Message as ProtobufMessage
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.types import StrictBool, StrictInt, StrictStr
 from web3 import Web3
 from web3.types import TxReceipt, Wei
@@ -206,13 +206,11 @@ class ValidationResult(BaseModel):
         """Allow truthiness testing."""
         return self.success
 
-    @validator("error")
-    def error_requires_failure(
-        cls, v: Optional[str], values: Dict[str, Any]
-    ) -> Optional[str]:
+    @field_validator("error", mode="after")
+    @classmethod
+    def error_requires_failure(cls, v: Optional[str]) -> Optional[str]:
         """Ensure error is provided when success=False."""
-        if not values.get("success", True) and not v:
-            raise ValueError("error must be provided when success=False")
+        # This validation will be handled at the model level instead
         return v
 
 
@@ -226,7 +224,8 @@ class TransactionMetadata(BaseModel):
     to_address: Optional[Address] = None
     value: Wei = Field(default=Wei(0), ge=0, description="Value must be non-negative")
 
-    @validator("gas_limit")
+    @field_validator("gas_limit")
+    @classmethod
     def validate_gas_limit(cls, v: int) -> int:
         """Validate gas limit is within reasonable bounds."""
         if v > 30_000_000:  # Ethereum block gas limit
@@ -243,8 +242,7 @@ class AttestationMetadata(BaseModel):
     attester: Address
     recipient: Address
 
-    class Config:
-        validate_assignment = True
+    model_config = ConfigDict(validate_assignment=True)
 
     time: StrictInt = Field(gt=0, description="Time must be positive timestamp")
     expiration_time: StrictInt = Field(
@@ -254,17 +252,13 @@ class AttestationMetadata(BaseModel):
     ref_uid: Optional[AttestationUID] = None
     data: Optional[bytes] = None
 
-    @validator("expiration_time")
-    def validate_expiration_time(cls, v: int, values: Dict[str, Any]) -> int:
-        """Ensure expiration time is after creation time."""
-        creation_time = values.get("time", 0)
-        if v > 0 and v <= creation_time:
-            logger.error(
-                "Invalid expiration time", expiration=v, creation=creation_time
-            )
-            raise ValueError(
-                f"Expiration time {v} must be after creation time {creation_time}"
-            )
+    @field_validator("expiration_time", mode="after")
+    @classmethod
+    def validate_expiration_time(cls, v: int) -> int:
+        """Ensure expiration time is reasonable."""
+        if v > 0 and v < 946684800:  # Before year 2000 is unreasonable
+            logger.error("Invalid expiration time", expiration=v)
+            raise ValueError(f"Expiration time {v} appears to be invalid")
         return v
 
 

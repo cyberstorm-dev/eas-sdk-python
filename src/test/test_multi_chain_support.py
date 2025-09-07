@@ -6,13 +6,13 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from main.EAS.config import (
+from eas import EAS
+from eas.config import (
     get_mainnet_chains,
     get_network_config,
     get_testnet_chains,
     list_supported_chains,
 )
-from main.EAS.core import EAS
 
 
 class TestMultiChainSupport:
@@ -116,9 +116,9 @@ class TestMultiChainSupport:
         ):
             get_network_config("non_existent_chain")
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     def test_eas_from_chain_valid_chain(self, mock_web3_class):
-        """Test EAS.from_chain() with valid chain names"""
+        """Test eas.from_chain() with valid chain names"""
         # Mock web3 connection
         mock_w3 = MagicMock()
         mock_w3.is_connected.return_value = True
@@ -139,9 +139,9 @@ class TestMultiChainSupport:
             assert eas.contract_address is not None
             assert eas.from_account == test_from_account
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     def test_eas_from_chain_with_overrides(self, mock_web3_class):
-        """Test EAS.from_chain() with custom RPC URL and contract address"""
+        """Test eas.from_chain() with custom RPC URL and contract address"""
         # Mock web3 connection
         mock_w3 = MagicMock()
         mock_w3.is_connected.return_value = True
@@ -167,7 +167,7 @@ class TestMultiChainSupport:
         assert eas.from_account == test_from_account
 
     def test_eas_from_chain_invalid_chain(self):
-        """Test EAS.from_chain() with invalid chain name"""
+        """Test eas.from_chain() with invalid chain name"""
         test_private_key = (
             "0xa7c5ba7114b7119bb78dfc8e8ccd9f4ad8c6c9f2e8d7ab234fac8b1d5c7e9f12"
         )
@@ -180,7 +180,7 @@ class TestMultiChainSupport:
             EAS.from_chain("non_existent_chain", test_private_key, test_from_account)
 
     def test_eas_from_environment(self, mock_env_vars):
-        """Test EAS.from_environment() parsing"""
+        """Test eas.from_environment() parsing"""
         # Set environment variables
         os.environ["EAS_CHAIN"] = "polygon"
         os.environ["EAS_PRIVATE_KEY"] = (
@@ -188,14 +188,14 @@ class TestMultiChainSupport:
         )
         os.environ["EAS_FROM_ACCOUNT"] = "0xd796b20681bD6BEe28f0c938271FA99261c84fE8"
 
-        with patch("main.EAS.core.web3.Web3"):
+        with patch("main.eas.core.web3.Web3"):
             eas = EAS.from_environment()
 
             assert eas.chain_id is not None
             assert eas.from_account == os.environ["EAS_FROM_ACCOUNT"]
 
     def test_eas_from_environment_missing_vars(self, mock_env_vars):
-        """Test EAS.from_environment() with missing required variables"""
+        """Test eas.from_environment() with missing required variables"""
         # Clear all EAS-related environment variables
         for var in ["EAS_CHAIN", "EAS_PRIVATE_KEY", "EAS_FROM_ACCOUNT"]:
             os.environ.pop(var, None)
@@ -203,7 +203,7 @@ class TestMultiChainSupport:
         with pytest.raises(ValueError, match="Missing required environment variables"):
             EAS.from_environment()
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     def test_backward_compatibility_factory_method(self, mock_web3_class):
         """Test that original create_eas_instance() works with new multi-chain support"""
         # Mock web3 connection
@@ -211,7 +211,7 @@ class TestMultiChainSupport:
         mock_w3.is_connected.return_value = True
         mock_web3_class.return_value = mock_w3
 
-        from main.EAS.config import create_eas_instance
+        from eas.config import create_eas_instance
 
         # Test with legacy network names (excluding deprecated ones that may fail security checks)
         legacy_networks = ["mainnet", "sepolia"]
@@ -242,7 +242,7 @@ class TestMultiChainSupport:
             successful_tests >= 1
         ), f"At least one legacy network should work, got {successful_tests}"
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     def test_multiple_eas_instances(self, mock_web3_class):
         """Test creating multiple EAS instances for different chains"""
         # Mock web3 connection
@@ -273,7 +273,7 @@ class TestMultiChainSupport:
             chains_to_test
         ), "Each chain should have a unique contract address"
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     def test_performance_factory_methods(self, mock_web3_class):
         """Verify performance of factory methods"""
         import os

@@ -206,7 +206,7 @@ tasks:
     desc: Clean generated protobuf files
     cmds:
       - echo "🧹 Cleaning generated protobuf files..."
-      - rm -rf src/main/EAS/generated/
+      - rm -rf src/main/eas/v1/
       - echo "✅ Protobuf files cleaned"
 
   proto:

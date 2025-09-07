@@ -9,10 +9,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from main.EAS.core import EAS
-from main.EAS.exceptions import EASValidationError
-from main.EAS.schema_registry import SchemaRegistry
-from main.EAS.transaction import TransactionResult
+from eas import EAS
+from eas.exceptions import EASValidationError
+from eas.schema_registry import SchemaRegistry
+from eas.transaction import TransactionResult
 
 from .test_utils import has_private_key, requires_network, requires_private_key
 
@@ -86,7 +86,7 @@ class TestSchemaRegistry:
 class TestEASWriteOperations:
     """Unit tests for new write operations in EAS class."""
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_revoke_attestation_validation(self, mock_open, mock_web3_class):
         """Test attestation revocation input validation."""
@@ -110,7 +110,7 @@ class TestEASWriteOperations:
         with pytest.raises(EASValidationError, match="Invalid attestation UID"):
             eas.revoke_attestation("invalid-uid")
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_multi_revoke_validation(self, mock_open, mock_web3_class):
         """Test batch revocation input validation."""
@@ -135,7 +135,7 @@ class TestEASWriteOperations:
         with pytest.raises(EASValidationError, match="Missing UID"):
             eas.multi_revoke([{"value": 0}])  # Missing uid
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_timestamp_validation(self, mock_open, mock_web3_class):
         """Test timestamping input validation."""
@@ -159,7 +159,7 @@ class TestEASWriteOperations:
         with pytest.raises(EASValidationError, match="cannot be empty"):
             eas.timestamp(b"")
 
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_multi_timestamp_validation(self, mock_open, mock_web3_class):
         """Test batch timestamping input validation."""
@@ -190,7 +190,7 @@ class TestWriteOperationsIntegration:
     """Integration tests for write operations with network connectivity."""
 
     @requires_network
-    @patch("main.EAS.core.web3.Web3")
+    @patch("main.eas.core.web3.Web3")
     @patch("builtins.open", new_callable=lambda: mock_file_content("[]"))
     def test_transaction_result_creation(self, mock_open, mock_web3_class):
         """Test that write operations return proper TransactionResult objects."""
@@ -215,7 +215,7 @@ class TestWriteOperationsIntegration:
         mock_w3.eth.get_transaction_count.return_value = 1
 
         # Mock signing and sending
-        with patch("main.EAS.core.Account.sign_transaction") as mock_sign:
+        with patch("main.eas.core.Account.sign_transaction") as mock_sign:
             mock_signed = Mock()
             mock_signed.rawTransaction = b"signed_tx"
             mock_sign.return_value = mock_signed
