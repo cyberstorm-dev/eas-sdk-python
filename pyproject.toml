@@ -64,9 +64,10 @@ Documentation = "https://github.com/cyberstorm-dev/eas-sdk-python#readme"
 
 [tool.setuptools]
 package-dir = {"" = "src/main"}
+packages = ["eas", "eas.v1", "eas.contracts"]
 
 [tool.setuptools.package-data]
-"eas" = ["*.json"]
+"eas" = ["*.json", "contracts/*.json"]
 
 [project.scripts]
 eas-tools = "eas.cli:main"
