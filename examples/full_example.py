@@ -19,8 +19,8 @@ from typing import Any, Dict
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src" / "main"))
 
-from EAS import EAS
-from EAS.config import get_network_config
+from eas import EAS
+from eas.config import get_network_config
 from eth_abi import encode
 
 

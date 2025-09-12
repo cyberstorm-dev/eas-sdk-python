@@ -676,10 +676,47 @@ class EAS:
         )
 
         try:
-            # Build revocation request
-            revocation_request_data = (uid, 0)  # (uid, value)
+            # First, we need to get the attestation to find its schema UID
+            # Get the attestation details from the contract
+            uid_bytes = (
+                bytes.fromhex(uid[2:]) if uid.startswith("0x") else bytes.fromhex(uid)
+            )
+
+            try:
+                attestation = self.easContract.functions.getAttestation(
+                    uid_bytes
+                ).call()
+                # attestation returns: (bytes32 uid, bytes32 schema, uint64 time, uint64 expirationTime,
+                #                      uint64 revocationTime, bytes32 refUID, address recipient, address attester,
+                #                      bool revocable, bytes data)
+                schema_uid = attestation[1]  # The schema is at index 1
+
+                logger.info(
+                    "retrieved_attestation_schema",
+                    attestation_uid=SecureEnvironmentValidator.sanitize_for_logging(
+                        uid, "uid"
+                    ),
+                    schema_uid=SecureEnvironmentValidator.sanitize_for_logging(
+                        schema_uid.hex(), "uid"
+                    ),
+                )
+
+            except Exception as e:
+                logger.error(
+                    "failed_to_retrieve_attestation",
+                    attestation_uid=SecureEnvironmentValidator.sanitize_for_logging(
+                        uid, "uid"
+                    ),
+                    error=str(e),
+                )
+                raise EASValidationError(
+                    f"Failed to retrieve attestation {uid}: {str(e)}"
+                )
+
+            # Build revocation request with correct schema
+            revocation_request_data = (uid_bytes, 0)  # (uid, value)
             revocation_request = (
-                bytes.fromhex(self.ZERO_ADDRESS[2:]),
+                schema_uid,  # Use the actual schema UID, not zero address
                 revocation_request_data,
             )  # (schema, data)
 
@@ -795,10 +832,37 @@ class EAS:
                         field_name=f"revocations[{i}].uid",
                     )
 
+                # Validate and format UID
+                try:
+                    uid = SecureEnvironmentValidator.validate_schema_uid(uid)
+                except SecurityError as e:
+                    raise EASValidationError(
+                        f"Invalid attestation UID in revocation {i}: {str(e)}",
+                        field_name=f"revocations[{i}].uid",
+                        field_value=uid,
+                    )
+
+                # Get the attestation to find its schema UID
+                uid_bytes = (
+                    bytes.fromhex(uid[2:])
+                    if uid.startswith("0x")
+                    else bytes.fromhex(uid)
+                )
+
+                try:
+                    attestation = self.easContract.functions.getAttestation(
+                        uid_bytes
+                    ).call()
+                    schema_uid = attestation[1]  # The schema is at index 1
+                except Exception as e:
+                    raise EASValidationError(
+                        f"Failed to retrieve attestation {uid} in revocation {i}: {str(e)}"
+                    )
+
                 # Each revocation needs (schema, RevocationRequestData)
-                revocation_data = (uid, value)
+                revocation_data = (uid_bytes, value)
                 revocation_request = (
-                    bytes.fromhex(self.ZERO_ADDRESS[2:]),
+                    schema_uid,  # Use the actual schema UID, not zero address
                     revocation_data,
                 )
                 revocation_requests.append(revocation_request)

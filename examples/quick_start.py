@@ -26,7 +26,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src" / "main"))
 
-from EAS import EAS
+from eas import EAS
 
 
 def main():
@@ -50,7 +50,7 @@ def main():
 
     # Example 2: List supported chains
     print("\n2. List available chains")
-    from EAS.config import list_supported_chains, get_mainnet_chains, get_testnet_chains
+    from eas.config import list_supported_chains, get_mainnet_chains, get_testnet_chains
     
     all_chains = list_supported_chains()
     mainnet_chains = get_mainnet_chains()
