@@ -193,3 +193,5 @@ src/eas_sdk/proto/
 # Buf specific
 .buf/
 buf.lock
+
+CLAUDE.md
