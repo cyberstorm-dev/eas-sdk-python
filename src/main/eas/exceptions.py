@@ -164,7 +164,7 @@ class EASNetworkError(EASError):
         self,
         message: str,
         rpc_url: Optional[str] = None,
-        network_name: Optional[str] = None,
+        chain_name: Optional[str] = None,
     ):
         context = {}
         if rpc_url:
@@ -174,8 +174,8 @@ class EASNetworkError(EASError):
             context["rpc_url"] = SecureEnvironmentValidator.sanitize_for_logging(
                 rpc_url, "url"
             )
-        if network_name:
-            context["network_name"] = network_name
+        if chain_name:
+            context["chain_name"] = chain_name
         super().__init__(message, context)
 
 

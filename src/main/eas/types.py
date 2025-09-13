@@ -133,7 +133,7 @@ class ChainConfig(TypedDict):
     chain_id: Required[ChainId]
     rpc_url: Required[RpcUrl]
     contract_version: Required[ContractVersion]
-    network_name: NotRequired[str]
+    chain_name: NotRequired[str]
 
 
 class EIP712Domain(TypedDict):

@@ -65,7 +65,9 @@ class EAS:
     @classmethod
     def from_chain(
         cls,
-        chain_name: str,
+        *,
+        chain_name: Optional[str] = None,
+        chain_id: Optional[int] = None,
         private_key: str,
         from_account: str,
         rpc_url: Optional[str] = None,
@@ -73,38 +75,56 @@ class EAS:
         **kwargs: Any,
     ) -> "EAS":
         """
-        Create an EAS instance from a chain name with automatic configuration resolution.
+        Create an EAS instance from a chain name or ID with automatic configuration resolution.
 
         Args:
             chain_name: Name of the blockchain network (e.g., 'ethereum', 'base', 'sepolia')
+            chain_id: Chain ID of the network (e.g., 1, 8453, 11155111, 42161)
             private_key: Private key for transaction signing
             from_account: Account address for transactions
             rpc_url: Optional custom RPC URL (overrides chain default)
             contract_address: Optional custom contract address (overrides chain default)
             **kwargs: Additional arguments passed to EAS constructor
 
+        Note:
+            Exactly one of chain_name or chain_id must be provided (XOR).
+
         Returns:
             EAS instance configured for the specified chain
 
         Raises:
-            ValueError: If chain name is invalid or required parameters are missing
+            ValueError: If neither or both chain parameters are provided, or if chain is not supported
             TypeError: If parameters have incorrect types
             ConnectionError: If unable to connect to the network
 
-        Example:
-            # Using chain defaults
-            eas = EAS.from_chain('ethereum', private_key, from_account)
+        Examples:
+            # Using chain name
+            eas = EAS.from_chain(chain_name='ethereum', private_key=pk, from_account=addr)
+
+            # Using chain ID
+            eas = EAS.from_chain(chain_id=8453, private_key=pk, from_account=addr)
 
             # With custom RPC
-            eas = EAS.from_chain('base', private_key, from_account,
+            eas = EAS.from_chain(chain_name='base', private_key=pk, from_account=addr,
                                rpc_url='https://my-custom-base-rpc.com')
         """
         from .config import get_network_config, validate_chain_config
 
+        # Validate XOR requirement
+        if (chain_name is None) == (chain_id is None):
+            raise ValueError(
+                "Exactly one of 'chain_name' or 'chain_id' must be provided (not both, not neither)"
+            )
+
         # Enhanced security validation using SecureEnvironmentValidator
         try:
             # Validate all inputs with comprehensive security checks
-            chain_name = SecureEnvironmentValidator.validate_chain_name(chain_name)
+            if chain_name is not None:
+                chain_name = SecureEnvironmentValidator.validate_chain_name(chain_name)
+            if chain_id is not None:
+                # Validate chain_id format
+                SecureEnvironmentValidator.validate_chain_id(str(chain_id))
+
             private_key = SecureEnvironmentValidator.validate_private_key(private_key)
             from_account = SecureEnvironmentValidator.validate_address(from_account)
         except SecurityError as e:
@@ -112,9 +132,17 @@ class EAS:
             raise ValueError(f"Security validation failed: {str(e)}")
 
         try:
-            # Get chain configuration
-            config = get_network_config(chain_name)
-            validate_chain_config(config, chain_name)
+            # Get chain configuration using new API
+            if chain_name is not None:
+                config = get_network_config(chain_name=chain_name)
+                lookup_key = chain_name
+            else:
+                config = get_network_config(chain_id=chain_id)
+                lookup_key = config[
+                    "name"
+                ]  # Use the chain name from config for logging
+
+            validate_chain_config(config, lookup_key)
 
             # Override with provided parameters
             final_rpc_url = rpc_url if rpc_url is not None else config["rpc_url"]
@@ -189,14 +217,22 @@ class EAS:
             )
 
         except (ValueError, TypeError) as e:
-            logger.error("eas_from_chain_failed", chain_name=chain_name, error=str(e))
+            # Use the original chain identifier for better error messages
+            error_chain_id = chain_name if chain_name is not None else str(chain_id)
+            logger.error(
+                "eas_from_chain_failed", chain_name=error_chain_id, error=str(e)
+            )
             raise
         except Exception as e:
+            # Use the original chain identifier for better error messages
+            error_chain_id = chain_name if chain_name is not None else str(chain_id)
             logger.error(
-                "eas_from_chain_unexpected_error", chain_name=chain_name, error=str(e)
+                "eas_from_chain_unexpected_error",
+                chain_name=error_chain_id,
+                error=str(e),
             )
             raise EASError(
-                f"Failed to create EAS instance for chain '{chain_name}': {str(e)}"
+                f"Failed to create EAS instance for chain '{error_chain_id}': {str(e)}"
             )
 
     @classmethod
@@ -205,11 +241,15 @@ class EAS:
         Create an EAS instance from environment variables with comprehensive configuration support.
 
         Environment Variables:
-            EAS_CHAIN: Chain name (required, e.g., 'ethereum', 'base', 'sepolia')
+            EAS_CHAIN: Chain name (e.g., 'ethereum', 'base', 'sepolia') - XOR with EAS_CHAIN_ID
+            EAS_CHAIN_ID: Chain ID (e.g., 1, 8453, 11155111) - XOR with EAS_CHAIN
             EAS_PRIVATE_KEY: Private key for signing (required)
             EAS_FROM_ACCOUNT: Account address for transactions (required)
             EAS_RPC_URL: Custom RPC URL (optional, overrides chain default)
             EAS_CONTRACT_ADDRESS: Custom contract address (optional, overrides chain default)
+
+        Note:
+            Exactly one of EAS_CHAIN or EAS_CHAIN_ID must be provided (XOR).
 
         Args:
             **kwargs: Additional arguments passed to EAS constructor
@@ -222,13 +262,17 @@ class EAS:
             TypeError: If environment variables have incorrect format
             ConnectionError: If unable to connect to the network
 
-        Example:
-            # Set environment variables
+        Examples:
+            # Using chain name
             export EAS_CHAIN=ethereum
             export EAS_PRIVATE_KEY=0x1234...
             export EAS_FROM_ACCOUNT=0xabcd...
+            eas = EAS.from_environment()
 
-            # Create EAS instance
+            # Using chain ID
+            export EAS_CHAIN_ID=8453
+            export EAS_PRIVATE_KEY=0x1234...
+            export EAS_FROM_ACCOUNT=0xabcd...
             eas = EAS.from_environment()
         """
         # Required environment variables
@@ -238,12 +282,27 @@ class EAS:
         #     "EAS_FROM_ACCOUNT": "from account address",
         # }
 
+        # Check for XOR requirement between EAS_CHAIN and EAS_CHAIN_ID
+        chain_name_env = os.getenv("EAS_CHAIN")
+        chain_id_env = os.getenv("EAS_CHAIN_ID")
+
+        if (chain_name_env is None) == (chain_id_env is None):
+            raise ValueError(
+                "Exactly one of 'EAS_CHAIN' or 'EAS_CHAIN_ID' environment variables "
+                "must be provided (not both, not neither)"
+            )
+
         # Use comprehensive batch environment variable validation
         required_env_types = {
-            "EAS_CHAIN": "chain_name",
             "EAS_PRIVATE_KEY": "private_key",
             "EAS_FROM_ACCOUNT": "address",
         }
+
+        # Add chain validation based on which is provided
+        if chain_name_env is not None:
+            required_env_types["EAS_CHAIN"] = "chain_name"
+        else:
+            required_env_types["EAS_CHAIN_ID"] = "chain_id"
 
         optional_env_types = {
             "EAS_RPC_URL": "rpc_url",
@@ -258,7 +317,12 @@ class EAS:
             logger.error("environment_validation_failed", error=str(e))
             raise ValueError(f"Environment variable validation failed: {str(e)}")
 
-        chain_name = env_values["EAS_CHAIN"]
+        # Extract chain identifier
+        chain_name = env_values.get("EAS_CHAIN")
+        chain_id_str = env_values.get("EAS_CHAIN_ID")
+        chain_id: Optional[int] = None
+        if chain_id_str is not None:
+            chain_id = int(chain_id_str)  # Convert string to int
         private_key = env_values["EAS_PRIVATE_KEY"]
         from_account = env_values["EAS_FROM_ACCOUNT"]
         rpc_url = env_values.get("EAS_RPC_URL")
@@ -268,6 +332,7 @@ class EAS:
         logger.info(
             "creating_eas_from_environment",
             chain_name=chain_name,
+            chain_id=chain_id,
             from_account=SecureEnvironmentValidator.sanitize_for_logging(
                 from_account, "address"
             ),
@@ -284,6 +349,7 @@ class EAS:
             # Use from_chain method with environment variable values
             return cls.from_chain(
                 chain_name=chain_name,
+                chain_id=chain_id,
                 private_key=private_key,
                 from_account=from_account,
                 rpc_url=rpc_url,
@@ -292,9 +358,10 @@ class EAS:
             )
 
         except Exception as e:
+            error_chain_id = chain_name if chain_name is not None else str(chain_id)
             logger.error(
                 "eas_from_environment_failed",
-                chain_name=chain_name,
+                chain_name=error_chain_id,
                 from_account=(
                     SecureEnvironmentValidator.sanitize_for_logging(
                         from_account, "address"
@@ -614,10 +681,10 @@ class EAS:
 
         return f"{base_url}/attestation/view/{attestation_uid}"
 
-    def __init_schema_registry(self, network_name: str) -> SchemaRegistry:
-        """Initialize schema registry for the current network."""
+    def __init_schema_registry(self, chain_name: str) -> SchemaRegistry:
+        """Initialize schema registry for the current chain."""
         try:
-            registry_address = SchemaRegistry.get_registry_address(network_name)
+            registry_address = SchemaRegistry.get_registry_address(chain_name)
             return SchemaRegistry(
                 web3=self.w3,
                 registry_address=registry_address,
@@ -631,7 +698,7 @@ class EAS:
     def register_schema(
         self,
         schema: str,
-        network_name: str = "base-sepolia",
+        chain_name: str = "base-sepolia",
         resolver: Optional[str] = None,
         revocable: bool = True,
     ) -> TransactionResult:
@@ -640,14 +707,14 @@ class EAS:
 
         Args:
             schema: Schema definition string (e.g., "uint256 id,string name")
-            network_name: Network to register on (default: base-sepolia)
+            chain_name: Chain to register on (default: base-sepolia)
             resolver: Optional resolver contract address
             revocable: Whether attestations using this schema can be revoked
 
         Returns:
             TransactionResult with schema UID and transaction details
         """
-        registry = self.__init_schema_registry(network_name)
+        registry = self.__init_schema_registry(chain_name)
         result = registry.register_schema(schema, resolver, revocable)
         return cast(TransactionResult, result)
 

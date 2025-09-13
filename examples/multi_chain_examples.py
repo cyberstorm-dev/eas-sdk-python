@@ -128,7 +128,7 @@ def demonstrate_factory_methods():
    from EAS.config import create_eas_instance
 
    eas = create_eas_instance(
-       network_name='mainnet',  # or 'sepolia', 'goerli', etc.
+       chain_name='mainnet',  # or 'sepolia', 'goerli', etc.
        from_account='0x1234...',
        private_key='0x1234...'
    )

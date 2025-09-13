@@ -79,7 +79,7 @@ class TestSchemaRegistry:
         assert len(address) == 42
 
         # Test unknown network
-        with pytest.raises(EASValidationError, match="Unsupported network"):
+        with pytest.raises(EASValidationError, match="Unsupported chain"):
             SchemaRegistry.get_registry_address("unknown-network")
 
 
@@ -277,7 +277,7 @@ class TestLiveWriteOperations:
         try:
             result = eas.register_schema(
                 schema=test_schema,
-                network_name="base-sepolia",
+                chain_name="base-sepolia",
                 resolver=None,
                 revocable=True,
             )

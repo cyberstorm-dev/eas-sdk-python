@@ -240,9 +240,9 @@ class SchemaRegistry:
             )
 
     @classmethod
-    def get_registry_address(cls, network_name: str) -> str:
-        """Get the schema registry contract address for a network."""
-        # Network-specific registry addresses
+    def get_registry_address(cls, chain_name: str) -> str:
+        """Get the schema registry contract address for a chain."""
+        # Chain-specific registry addresses
         # Note: These would need to be updated with actual EAS Schema Registry addresses
         registry_addresses = {
             "mainnet": "0x0a7E2Ff54e76B8E6659aedc9103FB21c038050D0",
@@ -251,11 +251,11 @@ class SchemaRegistry:
             "base-sepolia": "0x4200000000000000000000000000000000000020",  # Example - needs actual address
         }
 
-        if network_name not in registry_addresses:
+        if chain_name not in registry_addresses:
             raise EASValidationError(
-                f"Unsupported network for schema registry: {network_name}",
-                field_name="network_name",
-                field_value=network_name,
+                f"Unsupported chain for schema registry: {chain_name}",
+                field_name="chain_name",
+                field_value=chain_name,
             )
 
-        return registry_addresses[network_name]
+        return registry_addresses[chain_name]

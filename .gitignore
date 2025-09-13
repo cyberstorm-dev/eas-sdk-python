@@ -195,3 +195,4 @@ src/eas_sdk/proto/
 buf.lock
 
 CLAUDE.md
+node_modules/

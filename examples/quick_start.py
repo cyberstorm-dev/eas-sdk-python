@@ -31,10 +31,10 @@ from eas import EAS
 
 def main():
     """Quick start example showing common EAS operations."""
-    
+
     print("🚀 EAS SDK Quick Start Example")
     print("=" * 40)
-    
+
     # Example 1: Initialize EAS from environment
     print("\n1. Initialize EAS from environment variables")
     try:
@@ -51,11 +51,11 @@ def main():
     # Example 2: List supported chains
     print("\n2. List available chains")
     from eas.config import list_supported_chains, get_mainnet_chains, get_testnet_chains
-    
+
     all_chains = list_supported_chains()
     mainnet_chains = get_mainnet_chains()
     testnet_chains = get_testnet_chains()
-    
+
     print(f"   📊 Total supported chains: {len(all_chains)}")
     print(f"   🏦 Mainnet chains: {', '.join(mainnet_chains[:3])}...")
     print(f"   🧪 Testnet chains: {', '.join(testnet_chains[:3])}...")
@@ -65,15 +65,17 @@ def main():
     try:
         # Simple identity schema
         schema = "string name,uint256 age,bool verified"
-        result = eas.register_schema(schema, network_name="sepolia")  # Use testnet
-        
+        result = eas.register_schema(schema, chain_name="sepolia")  # Use testnet
+
         if result.success:
-            print(f"   ✅ Schema registered with UID: {result.data.get('schema_uid', 'N/A')}")
-            schema_uid = result.data.get('schema_uid')
+            print(
+                f"   ✅ Schema registered with UID: {result.data.get('schema_uid', 'N/A')}"
+            )
+            schema_uid = result.data.get("schema_uid")
         else:
             print(f"   ❌ Schema registration failed: {result.error}")
             schema_uid = None
-            
+
     except Exception as e:
         print(f"   ⚠️  Schema registration skipped: {e}")
         schema_uid = None
@@ -84,14 +86,16 @@ def main():
         # Use a known schema or the one we just created
         if not schema_uid:
             # Fallback to a common test schema (adjust as needed)
-            schema_uid = "0x83c23d3c24c90bc5d1b8b44a7c2cc50e4d9efca2e80d78a3ce5f8e4d10e5d4e5"
-        
+            schema_uid = (
+                "0x83c23d3c24c90bc5d1b8b44a7c2cc50e4d9efca2e80d78a3ce5f8e4d10e5d4e5"
+            )
+
         # Note: In a real application, you'd encode data properly
         # This is just for demonstration
         print(f"   📝 Using schema UID: {schema_uid}")
         print("   ⚠️  Attestation creation requires proper data encoding")
         print("   📚 See full_example.py for complete attestation workflow")
-        
+
     except Exception as e:
         print(f"   ⚠️  Attestation example skipped: {e}")
 
