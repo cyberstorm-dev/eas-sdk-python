@@ -13,6 +13,7 @@ from eas.config import (
     get_testnet_chains,
     list_supported_chains,
 )
+from eas.exceptions import EASSecurityError
 
 
 class TestMultiChainSupport:
@@ -42,7 +43,7 @@ class TestMultiChainSupport:
 
         assert len(mainnet_chains) > 0, "Should have at least one mainnet chain"
         for chain in mainnet_chains:
-            config = get_network_config(chain)
+            config = get_network_config(chain_name=chain)
             assert (
                 config.get("network_type", "mainnet") == "mainnet"
             ), f"{chain} should be a mainnet chain"
@@ -56,7 +57,7 @@ class TestMultiChainSupport:
 
         for chain in testnet_chains:
             try:
-                config = get_network_config(chain)
+                config = get_network_config(chain_name=chain)
                 assert (
                     config.get("network_type", "mainnet") == "testnet"
                 ), f"{chain} should be a testnet chain"
@@ -81,7 +82,7 @@ class TestMultiChainSupport:
 
         for chain in list_supported_chains():
             try:
-                config = get_network_config(chain)
+                config = get_network_config(chain_name=chain)
 
                 # Common configuration validation
                 assert "rpc_url" in config, f"RPC URL missing for {chain}"
@@ -112,9 +113,10 @@ class TestMultiChainSupport:
     def test_get_network_config_invalid_chain(self):
         """Test error handling for unsupported chain names"""
         with pytest.raises(
-            ValueError, match="(Unsupported chain|Invalid network name)"
+            (ValueError, EASSecurityError),
+            match="(Unsupported chain|Invalid network name|Invalid chain name format)",
         ):
-            get_network_config("non_existent_chain")
+            get_network_config(chain_name="non_existent_chain")
 
     @patch("main.eas.core.web3.Web3")
     def test_eas_from_chain_valid_chain(self, mock_web3_class):
@@ -132,7 +134,11 @@ class TestMultiChainSupport:
         test_from_account = "0xd796b20681bD6BEe28f0c938271FA99261c84fE8"
 
         for chain in supported_chains:
-            eas = EAS.from_chain(chain, test_private_key, test_from_account)
+            eas = EAS.from_chain(
+                chain_name=chain,
+                private_key=test_private_key,
+                from_account=test_from_account,
+            )
 
             # Validate basic properties
             assert eas.chain_id is not None
@@ -156,9 +162,9 @@ class TestMultiChainSupport:
         test_from_account = "0xd796b20681bD6BEe28f0c938271FA99261c84fE8"
 
         eas = EAS.from_chain(
-            "ethereum",
-            test_private_key,
-            test_from_account,
+            chain_name="ethereum",
+            private_key=test_private_key,
+            from_account=test_from_account,
             rpc_url=custom_rpc,
             contract_address=custom_contract,
         )
@@ -174,10 +180,14 @@ class TestMultiChainSupport:
         test_from_account = "0xd796b20681bD6BEe28f0c938271FA99261c84fE8"
 
         with pytest.raises(
-            ValueError,
-            match="(Unsupported chain|Invalid network name|Security validation failed)",
+            (ValueError, EASSecurityError),
+            match="(Unsupported chain|Invalid network name|Security validation failed|Invalid chain name format)",
         ):
-            EAS.from_chain("non_existent_chain", test_private_key, test_from_account)
+            EAS.from_chain(
+                chain_name="non_existent_chain",
+                private_key=test_private_key,
+                from_account=test_from_account,
+            )
 
     def test_eas_from_environment(self, mock_env_vars):
         """Test eas.from_environment() parsing"""
@@ -200,7 +210,7 @@ class TestMultiChainSupport:
         for var in ["EAS_CHAIN", "EAS_PRIVATE_KEY", "EAS_FROM_ACCOUNT"]:
             os.environ.pop(var, None)
 
-        with pytest.raises(ValueError, match="Missing required environment variables"):
+        with pytest.raises(ValueError, match="Exactly one of.*environment variables"):
             EAS.from_environment()
 
     @patch("main.eas.core.web3.Web3")
@@ -259,7 +269,9 @@ class TestMultiChainSupport:
         eas_instances = {}
         for chain in chains_to_test:
             eas_instances[chain] = EAS.from_chain(
-                chain, test_private_key, test_from_account
+                chain_name=chain,
+                private_key=test_private_key,
+                from_account=test_from_account,
             )
 
         # Verify unique chain IDs and contract addresses
@@ -291,7 +303,11 @@ class TestMultiChainSupport:
 
         # Measure initialization time for from_chain
         start_time = time.time()
-        eas = EAS.from_chain("ethereum", test_private_key, test_from_account)
+        eas = EAS.from_chain(
+            chain_name="ethereum",
+            private_key=test_private_key,
+            from_account=test_from_account,
+        )
         from_chain_time = time.time() - start_time
         assert eas is not None
 

@@ -487,20 +487,34 @@ class TestSecurityIntegration:
             ),
         ):
 
-            eas = EAS.from_chain("ethereum", valid_key, valid_address)
+            eas = EAS.from_chain(
+                chain_name="ethereum", private_key=valid_key, from_account=valid_address
+            )
             assert eas is not None
 
         # Invalid chain name should fail
         with pytest.raises(ValueError, match="Security validation failed"):
-            EAS.from_chain("ethereum; rm -rf /", valid_key, valid_address)
+            EAS.from_chain(
+                chain_name="ethereum; rm -rf /",
+                private_key=valid_key,
+                from_account=valid_address,
+            )
 
         # Invalid private key should fail
         with pytest.raises(ValueError, match="Security validation failed"):
-            EAS.from_chain("ethereum", "invalid-key", valid_address)
+            EAS.from_chain(
+                chain_name="ethereum",
+                private_key="invalid-key",
+                from_account=valid_address,
+            )
 
         # Invalid address should fail
         with pytest.raises(ValueError, match="Security validation failed"):
-            EAS.from_chain("ethereum", valid_key, "invalid-address")
+            EAS.from_chain(
+                chain_name="ethereum",
+                private_key=valid_key,
+                from_account="invalid-address",
+            )
 
     @patch.dict(
         os.environ,
@@ -551,7 +565,7 @@ class TestSecurityIntegration:
         os.environ,
         {
             "EAS_CHAIN": "ethereum; rm -rf /",  # Injection attempt
-            "EAS_PRIVATE_KEY": "0x1234567890123456789012345678901234567890123456789012345678901234",
+            "EAS_PRIVATE_KEY": "0xa7c5ba7114b7119bb78dfc8e8ccd9f4ad8c6c9f2e8d7ab234fac8b1d5c7e9f12",
             "EAS_FROM_ACCOUNT": "0x1234567890123456789012345678901234567890",
         },
     )
@@ -559,7 +573,9 @@ class TestSecurityIntegration:
         """Test that environment variable injection is prevented"""
         from eas import EAS
 
-        with pytest.raises(ValueError, match="dangerous patterns"):
+        with pytest.raises(
+            ValueError, match="(dangerous patterns|Invalid chain name format)"
+        ):
             EAS.from_environment()
 
 

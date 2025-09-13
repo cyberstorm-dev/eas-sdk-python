@@ -163,7 +163,10 @@ def query_eas_graphql(
 
 
 def show_schema_impl(
-    schema_uid: str, output_format: str = "eas", network: str = "mainnet"
+    schema_uid: str,
+    output_format: str = "eas",
+    chain_name: Optional[str] = None,
+    chain_id: Optional[int] = None,
 ) -> None:
     """
     Display schema information from EAS GraphQL API.
@@ -175,9 +178,18 @@ def show_schema_impl(
     """
     try:
         # Get GraphQL endpoint
-        endpoint = EAS_GRAPHQL_ENDPOINTS.get(network)
+        # Resolve chain name if needed
+        if chain_name is not None:
+            resolved_name = chain_name
+        else:
+            from eas.config import get_chain_name_from_id
+
+            assert chain_id is not None  # Type hint for mypy
+            resolved_name = get_chain_name_from_id(chain_id)
+
+        endpoint = EAS_GRAPHQL_ENDPOINTS.get(resolved_name)
         if not endpoint:
-            raise ValueError(f"Unsupported network: {network}")
+            raise ValueError(f"Unsupported chain: {resolved_name}")
 
         # GraphQL query for schema
         query = """
@@ -297,7 +309,10 @@ def format_attestation_yaml(attestation_data: Dict[str, Any]) -> None:
 
 
 def show_attestation_impl(
-    attestation_uid: str, output_format: str = "eas", network: str = "mainnet"
+    attestation_uid: str,
+    output_format: str = "eas",
+    chain_name: Optional[str] = None,
+    chain_id: Optional[int] = None,
 ) -> None:
     """
     Display attestation information from EAS GraphQL API.
@@ -309,9 +324,18 @@ def show_attestation_impl(
     """
     try:
         # Get GraphQL endpoint
-        endpoint = EAS_GRAPHQL_ENDPOINTS.get(network)
+        # Resolve chain name if needed
+        if chain_name is not None:
+            resolved_name = chain_name
+        else:
+            from eas.config import get_chain_name_from_id
+
+            assert chain_id is not None  # Type hint for mypy
+            resolved_name = get_chain_name_from_id(chain_id)
+
+        endpoint = EAS_GRAPHQL_ENDPOINTS.get(resolved_name)
         if not endpoint:
-            raise ValueError(f"Unsupported network: {network}")
+            raise ValueError(f"Unsupported chain: {resolved_name}")
 
         # GraphQL query for attestation
         query = """
@@ -479,7 +503,8 @@ def encode_schema_impl(
     encoding: str = "json",
     namespace: Optional[str] = None,
     message_type: Optional[str] = None,
-    network: str = "mainnet",
+    chain_name: Optional[str] = None,
+    chain_id: Optional[int] = None,
 ) -> None:
     """
     Retrieve attestation data and encode it using schema-based encoding.
@@ -493,7 +518,16 @@ def encode_schema_impl(
         network: Network to query (mainnet, sepolia, etc.)
     """
     try:
-        endpoint = _get_endpoint_for_network(network)
+        # Resolve chain name if needed
+        if chain_name is not None:
+            resolved_name = chain_name
+        else:
+            from eas.config import get_chain_name_from_id
+
+            assert chain_id is not None  # Type hint for mypy
+            resolved_name = get_chain_name_from_id(chain_id)
+
+        endpoint = _get_endpoint_for_network(resolved_name)
 
         # Fetch and parse attestation data
         parsed_data = _fetch_attestation_data(endpoint, attestation_uid)
@@ -580,7 +614,10 @@ def _display_generated_code(generated_code: str, output_format: str) -> None:
 
 
 def generate_schema_impl(
-    schema_uid: str, output_format: str = "eas", network: str = "mainnet"
+    schema_uid: str,
+    output_format: str = "eas",
+    chain_name: Optional[str] = None,
+    chain_id: Optional[int] = None,
 ) -> None:
     """
     Generate code from EAS schema definition.
@@ -591,7 +628,16 @@ def generate_schema_impl(
         network: Network to query (mainnet, sepolia, optimism, etc.)
     """
     try:
-        endpoint = _get_endpoint_for_network(network)
+        # Resolve chain name if needed
+        if chain_name is not None:
+            resolved_name = chain_name
+        else:
+            from eas.config import get_chain_name_from_id
+
+            assert chain_id is not None  # Type hint for mypy
+            resolved_name = get_chain_name_from_id(chain_id)
+
+        endpoint = _get_endpoint_for_network(resolved_name)
 
         # Fetch and parse schema data
         parsed_data = _fetch_schema_data(endpoint, schema_uid)
@@ -665,11 +711,12 @@ def extract_proto_impl(
 
 @click.group()
 @click.option(
-    "--network",
+    "--chain-name",
     "-n",
     type=click.Choice(
         [
             "mainnet",
+            "ethereum",
             "sepolia",
             "base-sepolia",
             "optimism",
@@ -679,25 +726,44 @@ def extract_proto_impl(
         ],
         case_sensitive=False,
     ),
-    default="mainnet",
-    help="Network to query (default: mainnet)",
+    help="Chain name to query (e.g., ethereum, base, sepolia)",
 )
-@click.version_option(version="0.1.4", prog_name="EAS Tools")
+@click.option(
+    "--chain-id",
+    "-i",
+    type=int,
+    help="Chain ID to query (e.g., 1, 8453, 11155111)",
+)
+@click.version_option(version="0.1.5", prog_name="EAS Tools")
 @click.pass_context
-def main(ctx: click.Context, network: str) -> None:
+def main(
+    ctx: click.Context, chain_name: Optional[str], chain_id: Optional[int]
+) -> None:
     """🛠️  EAS Tools - Ethereum Attestation Service CLI
 
-    Query and interact with EAS data across multiple networks.
-    The --network flag applies to all subcommands.
+    Query and interact with EAS data across multiple chains.
+    Specify either --chain-name or --chain-id (not both).
 
     \b
     Examples:
-      eas-tools -n base-sepolia attestation show 0xceff...
-      eas-tools -n mainnet schema show 0x86ad...
+      eas-tools --chain-name base-sepolia attestation show 0xceff...
+      eas-tools --chain-id 8453 schema show 0x86ad...
       eas-tools dev chains
     """
+    # Validate XOR requirement
+    if (chain_name is None) == (chain_id is None):
+        if chain_name is None and chain_id is None:
+            # Default to mainnet for backward compatibility
+            chain_name = "mainnet"
+        else:
+            click.echo(
+                "Error: Specify either --chain-name or --chain-id (not both)", err=True
+            )
+            ctx.exit(1)
+
     ctx.ensure_object(dict)
-    ctx.obj["network"] = network
+    ctx.obj["chain_name"] = chain_name
+    ctx.obj["chain_id"] = chain_id
 
 
 # Schema commands group
@@ -728,8 +794,9 @@ def show(ctx: click.Context, schema_uid: str, output_format: str) -> None:
     Example:
       eas-tools -n base-sepolia schema show 0x86ad448d1844cd6d7c13cf5d8effbc70a596af78bd0a01b747e2acb5f74c6d9b
     """
-    network = ctx.obj["network"]
-    show_schema_impl(schema_uid, output_format, network)
+    chain_name = ctx.obj["chain_name"]
+    chain_id = ctx.obj["chain_id"]
+    show_schema_impl(schema_uid, output_format, chain_name, chain_id)
 
 
 # Attestation commands group
@@ -762,8 +829,9 @@ def show_attestation(
     Example:
       eas-tools -n base-sepolia attestation show 0xceffa19c412727fa6ea41ce8f685a397d93d744c5314f19c39fa7b007a985c41
     """
-    network = ctx.obj["network"]
-    show_attestation_impl(attestation_uid, output_format, network)
+    chain_name = ctx.obj["chain_name"]
+    chain_id = ctx.obj["chain_id"]
+    show_attestation_impl(attestation_uid, output_format, chain_name, chain_id)
 
 
 @attestation.command()
@@ -815,9 +883,10 @@ def decode(
     Example:
       eas-tools -n base-sepolia attestation decode 0xceff...
     """
-    network = ctx.obj["network"]
+    chain_name = ctx.obj["chain_name"]
+    chain_id = ctx.obj["chain_id"]
     encode_schema_impl(
-        attestation_uid, format, encoding, namespace, message_type, network
+        attestation_uid, format, encoding, namespace, message_type, chain_name, chain_id
     )
 
 
@@ -839,8 +908,9 @@ def generate(ctx: click.Context, schema_uid: str, output_format: str) -> None:
     Example:
       eas-tools -n base-sepolia schema generate 0x86ad... --format proto
     """
-    network = ctx.obj["network"]
-    generate_schema_impl(schema_uid, output_format, network)
+    chain_name = ctx.obj["chain_name"]
+    chain_id = ctx.obj["chain_id"]
+    generate_schema_impl(schema_uid, output_format, chain_name, chain_id)
 
 
 # Query commands group
@@ -1110,8 +1180,17 @@ def attestations(
       eas-tools query attestations --limit 50 --offset 100 --format json
     """
     try:
-        network = ctx.obj["network"]
-        client = EASQueryClient(network=network)
+        chain_name = ctx.obj["chain_name"]
+        chain_id = ctx.obj["chain_id"]
+        # Create client using appropriate parameter
+        if chain_name is not None:
+            client = EASQueryClient(network=chain_name)
+        else:
+            # Convert chain_id to chain_name for client
+            from eas.config import get_chain_name_from_id
+
+            chain_name = get_chain_name_from_id(chain_id)
+            client = EASQueryClient(network=chain_name)
 
         # Build filter
         filters = AttestationFilter(
@@ -1134,7 +1213,9 @@ def attestations(
             sort_order=SortOrder.DESC,
         )
 
-        console.print(f"🔍 Searching for attestations on {network}...")
+        console.print(
+            f"🔍 Searching for attestations on {chain_name or str(chain_id)}..."
+        )
         results = client.find_attestations(filters)
         format_attestation_results(results, format)
 
@@ -1204,8 +1285,17 @@ def schemas(
       eas-tools query schemas --limit 25 --format json
     """
     try:
-        network = ctx.obj["network"]
-        client = EASQueryClient(network=network)
+        chain_name = ctx.obj["chain_name"]
+        chain_id = ctx.obj["chain_id"]
+        # Create client using appropriate parameter
+        if chain_name is not None:
+            client = EASQueryClient(network=chain_name)
+        else:
+            # Convert chain_id to chain_name for client
+            from eas.config import get_chain_name_from_id
+
+            chain_name = get_chain_name_from_id(chain_id)
+            client = EASQueryClient(network=chain_name)
 
         # Build filter
         filters = SchemaFilter(
@@ -1221,7 +1311,7 @@ def schemas(
             sort_order=SortOrder.DESC,
         )
 
-        console.print(f"🔍 Searching for schemas on {network}...")
+        console.print(f"🔍 Searching for schemas on {chain_name or str(chain_id)}...")
         results = client.find_schemas(filters)
         format_schema_results(results, format)
 
@@ -1280,9 +1370,18 @@ def revoke(
       eas-tools -n base-sepolia revoke 0xceff... --dry-run
     """
     try:
-        network = ctx.obj["network"]
+        chain_name = ctx.obj["chain_name"]
+        chain_id = ctx.obj["chain_id"]
 
-        console.print(f"🔐 Preparing to revoke attestation on {network}...")
+        # Get the display name for the chain
+        if chain_name is not None:
+            display_name = chain_name
+        else:
+            from eas.config import get_chain_name_from_id
+
+            display_name = get_chain_name_from_id(chain_id)
+
+        console.print(f"🔐 Preparing to revoke attestation on {display_name}...")
         console.print(f"    Attestation UID: {attestation_uid}")
 
         # Get private key from CLI option or environment
@@ -1315,7 +1414,7 @@ def revoke(
 
         if dry_run:
             console.print("\n🔍 DRY RUN - Transaction will not be submitted")
-            console.print(f"    Network: {network}")
+            console.print(f"    Chain: {display_name}")
             console.print(f"    Attestation UID: {attestation_uid}")
             console.print(f"    From account: {from_account}")
             if gas_limit:
@@ -1325,7 +1424,7 @@ def revoke(
 
         # Set chain environment variable if not already set
         if not os.environ.get("EAS_CHAIN"):
-            os.environ["EAS_CHAIN"] = network
+            os.environ["EAS_CHAIN"] = display_name
         if not os.environ.get("EAS_PRIVATE_KEY"):
             os.environ["EAS_PRIVATE_KEY"] = private_key
         if not os.environ.get("EAS_FROM_ACCOUNT"):
@@ -1351,17 +1450,17 @@ def revoke(
             console.print(f"    Block number: {result.block_number}")
 
         console.print("\n🔗 View on explorer:")
-        if network == "mainnet":
+        if display_name == "mainnet" or display_name == "ethereum":
             console.print(f"    https://etherscan.io/tx/{result.tx_hash}")
-        elif network == "sepolia":
+        elif display_name == "sepolia":
             console.print(f"    https://sepolia.etherscan.io/tx/{result.tx_hash}")
-        elif network == "base":
+        elif display_name == "base":
             console.print(f"    https://basescan.org/tx/{result.tx_hash}")
-        elif network == "base-sepolia":
+        elif display_name == "base-sepolia":
             console.print(f"    https://sepolia.basescan.org/tx/{result.tx_hash}")
-        elif network == "optimism":
+        elif display_name == "optimism":
             console.print(f"    https://optimistic.etherscan.io/tx/{result.tx_hash}")
-        elif network == "arbitrum":
+        elif display_name == "arbitrum":
             console.print(f"    https://arbiscan.io/tx/{result.tx_hash}")
 
     except EASValidationError as e:

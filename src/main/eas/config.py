@@ -182,12 +182,20 @@ EXAMPLE_ATTESTATION_DATA = {
 }
 
 
-def get_network_config(network_name: str) -> Dict[str, Any]:
+def get_network_config(
+    *,
+    chain_name: Optional[str] = None,
+    chain_id: Optional[int] = None,
+) -> Dict[str, Any]:
     """
-    Get network configuration by name with enhanced security validation.
+    Get network configuration by chain name or chain ID with enhanced security validation.
 
     Args:
-        network_name: Name of the network (e.g., 'ethereum', 'base', 'sepolia', 'arbitrum')
+        chain_name: Name of the network (e.g., 'ethereum', 'base', 'sepolia', 'arbitrum')
+        chain_id: Chain ID of the network (e.g., 1, 8453, 11155111, 42161)
+
+    Note:
+        Exactly one of chain_name or chain_id must be provided (XOR).
 
     Returns:
         Network configuration dictionary containing:
@@ -201,46 +209,106 @@ def get_network_config(network_name: str) -> Dict[str, Any]:
         - explorer_url: Block explorer URL
 
     Raises:
-        ValueError: If network name is not supported
+        ValueError: If neither or both parameters are provided, or if chain is not supported
         SecurityError: If network configuration fails security validation
     """
-    # Validate network name securely
-    try:
-        network_name = SecureEnvironmentValidator.validate_chain_name(network_name)
-    except SecurityError as e:
-        raise ValueError(f"Invalid network name: {str(e)}")
-
-    if network_name not in SUPPORTED_CHAINS:
-        supported_networks = list(SUPPORTED_CHAINS.keys())
-        mainnet_networks = [
-            name
-            for name, config in SUPPORTED_CHAINS.items()
-            if config.get("network_type") == "mainnet"
-        ]
-        testnet_networks = [
-            name
-            for name, config in SUPPORTED_CHAINS.items()
-            if config.get("network_type") == "testnet"
-        ]
-
-        error_msg = (
-            f"Unsupported network: '{network_name}'. "
-            f"\nSupported networks ({len(supported_networks)} total):"
-            f"\nMainnets: {mainnet_networks}"
-            f"\nTestnets: {testnet_networks}"
+    # Validate XOR requirement
+    if (chain_name is None) == (chain_id is None):
+        raise ValueError(
+            "Exactly one of 'chain_name' or 'chain_id' must be provided (not both, not neither)"
         )
-        raise ValueError(error_msg)
 
-    config = SUPPORTED_CHAINS[network_name].copy()
+    config: Optional[Dict[str, Any]] = None
+    lookup_key: str = ""
+
+    if chain_name is not None:
+        # Validate chain name securely
+        try:
+            chain_name = SecureEnvironmentValidator.validate_chain_name(chain_name)
+        except SecurityError as e:
+            raise ValueError(f"Invalid chain name: {str(e)}")
+
+        if chain_name not in SUPPORTED_CHAINS:
+            supported_networks = list(SUPPORTED_CHAINS.keys())
+            mainnet_networks = [
+                name
+                for name, config in SUPPORTED_CHAINS.items()
+                if config.get("network_type") == "mainnet"
+            ]
+            testnet_networks = [
+                name
+                for name, config in SUPPORTED_CHAINS.items()
+                if config.get("network_type") == "testnet"
+            ]
+
+            error_msg = (
+                f"Unsupported chain name: '{chain_name}'. "
+                f"\nSupported chains ({len(supported_networks)} total):"
+                f"\nMainnets: {mainnet_networks}"
+                f"\nTestnets: {testnet_networks}"
+            )
+            raise ValueError(error_msg)
+
+        config = SUPPORTED_CHAINS[chain_name].copy()
+        lookup_key = chain_name
+
+    else:  # chain_id is not None
+        # Validate chain ID securely
+        try:
+            validated_chain_id = SecureEnvironmentValidator.validate_chain_id(
+                str(chain_id)
+            )
+        except SecurityError as e:
+            raise ValueError(f"Invalid chain ID: {str(e)}")
+
+        # Find config by chain_id
+        for name, chain_config in SUPPORTED_CHAINS.items():
+            if chain_config.get("chain_id") == validated_chain_id:
+                config = chain_config.copy()
+                lookup_key = name
+                break
+
+        if config is None:
+            supported_chain_ids = [
+                config["chain_id"]
+                for config in SUPPORTED_CHAINS.values()
+                if "chain_id" in config and isinstance(config["chain_id"], int)
+            ]
+            mainnet_chain_ids = [
+                config["chain_id"]
+                for config in SUPPORTED_CHAINS.values()
+                if (
+                    config.get("network_type") == "mainnet"
+                    and "chain_id" in config
+                    and isinstance(config["chain_id"], int)
+                )
+            ]
+            testnet_chain_ids = [
+                config["chain_id"]
+                for config in SUPPORTED_CHAINS.values()
+                if (
+                    config.get("network_type") == "testnet"
+                    and "chain_id" in config
+                    and isinstance(config["chain_id"], int)
+                )
+            ]
+
+            error_msg = (
+                f"Unsupported chain ID: {chain_id}. "
+                f"\nSupported chain IDs ({len(supported_chain_ids)} total):"
+                f"\nMainnets: {sorted(mainnet_chain_ids)}"
+                f"\nTestnets: {sorted(testnet_chain_ids)}"
+            )
+            raise ValueError(error_msg)
+
+    assert config is not None  # Should never happen due to validation above
 
     # Enhanced configuration validation with security checks
-    validate_chain_config(config, network_name)
+    validate_chain_config(config, lookup_key)
 
     # Verify contract addresses against known good values
-    if not _verify_contract_integrity(config, network_name):
-        raise SecurityError(
-            f"Contract address integrity check failed for {network_name}"
-        )
+    if not _verify_contract_integrity(config, lookup_key):
+        raise SecurityError(f"Contract address integrity check failed for {lookup_key}")
 
     return config
 
@@ -283,6 +351,55 @@ def get_testnet_chains() -> List[str]:
         if config.get("network_type") == "testnet"
     ]
     return sorted(testnet_chains)
+
+
+def get_chain_id_from_name(chain_name: str) -> int:
+    """
+    Get chain ID from chain name.
+
+    Args:
+        chain_name: Name of the chain (e.g., 'ethereum', 'base', 'sepolia')
+
+    Returns:
+        Chain ID as integer
+
+    Raises:
+        ValueError: If chain name is not supported
+    """
+    config = get_network_config(chain_name=chain_name)
+    return int(config["chain_id"])
+
+
+def get_chain_name_from_id(chain_id: int) -> str:
+    """
+    Get chain name from chain ID.
+
+    Args:
+        chain_id: Chain ID (e.g., 1, 8453, 11155111)
+
+    Returns:
+        Chain name as string
+
+    Raises:
+        ValueError: If chain ID is not supported
+    """
+    config = get_network_config(chain_id=chain_id)
+    return str(config["name"])
+
+
+def list_supported_chain_ids() -> List[int]:
+    """
+    Get a list of all supported chain IDs.
+
+    Returns:
+        List of supported chain IDs sorted numerically
+    """
+    chain_ids = [
+        config["chain_id"]
+        for config in SUPPORTED_CHAINS.values()
+        if "chain_id" in config and isinstance(config["chain_id"], int)
+    ]
+    return sorted(chain_ids)
 
 
 def validate_chain_config(config: Dict[str, Any], chain_name: str) -> None:
@@ -381,10 +498,11 @@ def get_example_attestation_data() -> Dict[str, Any]:
 
 
 def create_eas_instance(
-    network_name: Optional[str] = None,
+    network_name: Optional[str] = None,  # Deprecated parameter name
     from_account: Optional[str] = None,
     private_key: Optional[str] = None,
     rpc_url: Optional[str] = None,
+    chain_name: Optional[str] = None,  # New parameter name
 ) -> "EAS":
     """
     DEPRECATED: Legacy factory method with security warnings.
@@ -411,10 +529,21 @@ def create_eas_instance(
 
     from .core import EAS
 
-    # Use environment variables if not provided (with validation)
-    network_name = network_name or os.getenv("NETWORK", "sepolia")
-    # Ensure network_name is not None (it has default "sepolia")
-    assert network_name is not None, "network_name should not be None after assignment"
+    # Handle both old and new parameter names for backward compatibility
+    if (network_name is None) == (chain_name is None):
+        if network_name is None and chain_name is None:
+            # Use environment variables if not provided (with validation)
+            network_name = os.getenv("NETWORK", "sepolia")
+        else:
+            raise ValueError(
+                "Cannot specify both network_name and chain_name. Use chain_name for new code."
+            )
+
+    # Use the provided parameter or default
+    final_chain_name = chain_name or network_name
+    assert (
+        final_chain_name is not None
+    ), "chain_name should not be None after assignment"
 
     from_account_env = os.getenv("FROM_ACCOUNT")
     from_account = from_account or from_account_env
@@ -428,7 +557,9 @@ def create_eas_instance(
     # Enhanced parameter validation
     try:
         # Validate all inputs using security validator
-        network_name = SecureEnvironmentValidator.validate_chain_name(network_name)
+        final_chain_name = SecureEnvironmentValidator.validate_chain_name(
+            final_chain_name
+        )
         from_account = SecureEnvironmentValidator.validate_address(from_account)
         private_key = SecureEnvironmentValidator.validate_private_key(private_key)
 
@@ -442,7 +573,7 @@ def create_eas_instance(
     except SecurityError as e:
         raise ValueError(f"Security validation failed: {str(e)}")
 
-    config = get_network_config(network_name)
+    config = get_network_config(chain_name=final_chain_name)
 
     # Override with validated parameters
     if rpc_url:
