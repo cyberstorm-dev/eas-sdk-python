@@ -88,6 +88,9 @@ extend-exclude = '''
   | build
   | dist
 )/
+|
+  # generated protobuf files
+  _pb2(_grpc)?\.pyi?$
 '''
 
 [tool.isort]
